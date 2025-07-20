@@ -1,153 +1,440 @@
-import Slider from "../../components/Slider/Slider";
-import "./singlePage.scss";
-import { singlePostData, userData } from "../../lib/dummydata";
-import Map from "../../components/map/Map"
-import Gmap from "../../components/GoogleMap/Gmap"
+import React, { useContext, useState } from "react";
 import { useLoaderData, useNavigate } from "react-router-dom";
-import DOMPurify from "dompurify";
-import { useContext, useState } from "react"
+import { MapPin, Heart, MessageCircle, Share2, Home, Car, Utensils, GraduationCap, Bus, Users, Bath, Bed, Ruler, DollarSign, Star, Shield, Building2 } from "lucide-react";
+import Slider from "../../components/Slider/Slider";
+import Map from "../../components/map/Map";
 import apiRequest from "../../lib/apiRequest";
 import { AuthContext } from "../../context/AuthContext";
-// import { Navigate } from "react-router-dom";
-
+import DOMPurify from "dompurify";
+import { useTheme } from '../../context/ThemeContext';
 
 function SinglePage() {
   const post = useLoaderData();
-  const[saved, setSaved] = useState(post.isSaved)
-  const {currentUser} = useContext(AuthContext)
-  const navigate = useNavigate()
-  const handleSave = async() =>{
-      // AFTER REACT 19 UPDATE TO USE OPTIMISTIC HOOK
-      setSaved((prev) => ! prev);
-    if (!currentUser) {
-      navigate("/login")
-    }
-    try {
-      await apiRequest.post("/users/save", {postId: post.id});
-      
-    } catch (error) {
-      console.log(error)
-      setSaved((prev) => ! prev);
+  const [saved, setSaved] = useState(post?.isSaved || false);
+  const { currentUser } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const { theme } = useTheme ? useTheme() : { theme: 'light' };
+  const isDark = (theme === 'dark' || (theme === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches));
 
-    }
+  // Add error handling for missing data
+  if (!post) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Property Not Found</h1>
+          <p className="text-gray-600 mb-6">The property you're looking for doesn't exist or has been removed.</p>
+          <button 
+            onClick={() => navigate("/")}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Go Back Home
+          </button>
+        </div>
+      </div>
+    );
   }
 
+  const handleSave = async () => {
+    setSaved((prev) => !prev);
+    if (!currentUser) {
+      navigate("/login");
+    }
+    try {
+      await apiRequest.post("/users/save", { postId: post.id });
+    } catch (error) {
+      setSaved((prev) => !prev);
+    }
+  };
+
+  const handleSendMessage = () => {
+    if (!currentUser) {
+      navigate("/login", { state: { from: location, showContact: true } });
+      return;
+    }
+    
+    // Show contact form modal or navigate to contact page
+    const contactData = {
+      propertyId: post.id,
+      propertyTitle: post.title,
+      agentName: post.username,
+      agentEmail: post.email
+    };
+    
+    // Store contact data in localStorage for the contact form
+    localStorage.setItem('contactData', JSON.stringify(contactData));
+    
+    // Show notification
+    showNotification({
+      type: 'success',
+      title: 'Contact Form',
+      message: 'Contact form will open in a new window',
+      duration: 3000
+    });
+    
+    // Open contact modal or navigate
+    navigate(`/contact?property=${post.id}`);
+  };
+
+  const handleShareProperty = () => {
+    const shareData = {
+      title: post.title,
+      text: `Check out this amazing property: ${post.title} - $${post.price.toLocaleString()}`,
+      url: window.location.href
+    };
+
+    if (navigator.share) {
+      navigator.share(shareData);
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(`${shareData.title} - ${shareData.text} - ${shareData.url}`);
+      showNotification({
+        type: 'success',
+        title: 'Link Copied',
+        message: 'Property link copied to clipboard!',
+        duration: 3000
+      });
+    }
+  };
+
+  // Notification function
+  const showNotification = (options) => {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
+      options.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+    }`;
+    notification.innerHTML = `
+      <div class="flex items-center gap-3">
+        <div class="font-semibold">${options.title}</div>
+        <button onclick="this.parentElement.parentElement.remove()" class="ml-auto text-white/80 hover:text-white">×</button>
+      </div>
+      <div class="text-sm mt-1">${options.message}</div>
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      if (notification.parentElement) {
+        notification.remove();
+      }
+    }, options.duration || 3000);
+  };
 
   return (
-    <div className="singlePage">
-      <div className="details">
-      <div className="wrapper"><Slider images={post.images}/>
-      <div className="info">
-        <div className="top">
-          <div className="post">
-            <h1>{post.title}</h1>
-              <div className="address">
-                <img src="/pin.png" alt=""/><span className="text-3xl font-bold underline">{post.address}</span>
-              </div>
-              <div className="price">Ksh {post.price}</div>
-            </div>
-          <div className="user">
-            <img src={post.user.avatar}></img>
-            <div className="name">{post.user.username}</div>
-          </div>
+    <div className={`singlePage min-h-screen relative overflow-hidden bg-gray-50 dark:bg-[#0a1f16] transition-colors duration-300${isDark ? ' darker' : ''}`}>
+      {/* Mesh blobs for green glassmorphic dark theme */}
+      {isDark && (
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <div className="mesh-blob" style={{top: '10%', left: '5%', width: '420px', height: '420px', background: 'radial-gradient(circle, #059669 0%, transparent 70%)', position: 'absolute'}} />
+          <div className="mesh-blob" style={{top: '60%', left: '70%', width: '500px', height: '500px', background: 'radial-gradient(circle, #10b981 0%, transparent 70%)', position: 'absolute'}} />
+          <div className="mesh-blob" style={{top: '30%', left: '60%', width: '320px', height: '320px', background: 'radial-gradient(circle, #34d399 0%, transparent 70%)', position: 'absolute'}} />
         </div>
-        <div className="bottom" dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(post.postDetail.desc)}}></div>
-      </div>
-      </div>
-      </div>
-      {/* features section */}
-      <div className="features">
-      <div className="wrapper">
-        <p className="title">General</p>
-        <div className="listVertical">
-          <div className="feature">
-          <img src="/utility.png"/>
-              <div className="featureText">
-                <span>Utilities</span>
-                {post.postDetail.utilities ==="owner"?(
-                  <p>Owner is responsible</p>
-                ):( <p>Tenant is responsible</p>)
-                }
-              </div>
-          </div>
-          <div className="feature">
-          <img src="/pet.png"/>
-              <div className="featureText">
-                <span>Pet Policy</span>
-                {post.postDetail.pet === "Allowed"? 
-                  <p>Pets allowed</p>: <p>Pets not allowed</p>}
-                
-              </div>
-          </div>
-          <div className="feature">
-          <img src="/fee.png"/>
-              <div className="featureText">
-                <span>Property Fees</span>
-                <p>Must have 3x the rent in total household income</p>
-              </div>
-          </div>
-        </div>
-        {/* sizes */}
-        <p className="title">Sizes</p>        
-        <div className="sizes">
-          <div className="size">
-          <img src="/size.png" alt=""/> 
-          <span>{post.postDetail.size}</span>         
-          </div>
-          <div className="size">
-            <img src="/bed.png"/>
-            <span>{post.bedroom} bedroom</span>            
-          </div>
-          <div className="size">
-          <img src="/bath.png"/>
-          <span>{post.bathroom} bathrrom</span>
-          </div>
-        </div>
-        {/* Nearby places */}
-        <p className="title">Nearby places</p>
-        <div className="listHorizontal">          
-            <div className="feature">
-            <img src="/school.png"/>
-              <div className="featureText">
-                <span>School:</span>
-                <p>{post.postDetail.school > 999 ? post.postDetail.school/1000+ "km":post.postDetail.school +"m" } away</p>
-              </div>            
-            </div>
-            <div className="feature">
-            <img src="/bus.png" alt=""/>
-            <div className="featureText">
-              <span>Bus Stop:</span>
-              <p>{post.postDetail.bus}m away</p>
-            </div>
-            </div>
-            <div className="feature">
-            <img src="restaurant.png" alt=""/>
-            <div className="featureText">
-              <span>Restaurant:</span>
-              <p>{post.postDetail.restaurant}m away</p>
-            </div>
-            </div>          
-        </div>
-        <p className="title">Location</p>
-        <div className="mapContainer">
-          <Map propertyData={[post]}/>
-        </div>
-        <div className="buttons">
-          <button className="firstButton">
-            <img src="/chat.png"/>
-            Send a message
-          </button>
-          <button className="secondButton" onClick={handleSave}
-          style={{backgroundColor: saved ? "#fece51":"white", color: "#000"}}>
-            <img src="/save.png"/>
-            { saved? "Place saved": "save the place"}
-          </button>
-        </div>
-        </div>
+      )}
 
+      {/* Enhanced animated background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-dark-900 dark:via-dark-800 dark:to-dark-700">
+        <div className="absolute inset-0">
+          <div className="absolute top-0 -left-20 w-96 h-96 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-blob"></div>
+          <div className="absolute top-0 -right-20 w-96 h-96 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-blob animation-delay-2000"></div>
+          <div className="absolute -bottom-20 left-20 w-96 h-96 bg-gradient-to-r from-pink-400 to-blue-400 rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-blob animation-delay-4000"></div>
+        </div>
       </div>
+
+      {/* Content */}
+      <div className="relative z-10 min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          {/* Property Images */}
+          <div className="backdrop-blur-xl bg-white/70 dark:bg-dark-800/80 border border-white/30 dark:border-dark-700 shadow-2xl rounded-3xl p-6 mb-8 transition-colors duration-300">
+            <Slider images={post.images || [post.img]} />
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Main Content */}
+            <div className="lg:col-span-2 space-y-8">
+              {/* Property Header */}
+              <div className="backdrop-blur-xl bg-white/70 dark:bg-dark-800/80 border border-white/30 dark:border-dark-700 shadow-2xl rounded-3xl p-8 transition-colors duration-300">
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                  <div className="flex-1">
+                    <h1 className="text-3xl lg:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+                      {post.title}
+                    </h1>
+                    <div className="flex items-center gap-2 mb-4">
+                      <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <span className="text-xl font-semibold text-gray-700 dark:text-gray-200">{post.address}</span>
+                    </div>
+                    <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
+                      Ksh {post.price?.toLocaleString()}
+                    </div>
+                  </div>
+                  
+                  {/* User Info */}
+                  {post.user && (
+                    <div className="flex items-center gap-4 p-4 bg-white/50 dark:bg-dark-700/50 rounded-2xl border border-white/30 dark:border-dark-600 transition-colors duration-300">
+                      <img 
+                        src={post.user.avatar || "/noavatar.jpg"} 
+                        alt={post.user.username}
+                        className="w-16 h-16 rounded-full object-cover border-2 border-white/50 dark:border-dark-600 shadow-lg"
+                      />
+                      <div>
+                        <div className="font-semibold text-gray-800 dark:text-gray-100">{post.user.username}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-300">Property Owner</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Property Description */}
+              {post.postDetail?.desc && (
+                <div className="backdrop-blur-xl bg-white/70 dark:bg-dark-800/80 border border-white/30 dark:border-dark-700 shadow-2xl rounded-3xl p-8 transition-colors duration-300">
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Property Description</h2>
+                  <div 
+                    className="prose prose-lg max-w-none text-gray-700 dark:text-gray-300 leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.postDetail.desc) }}
+                  />
+                </div>
+              )}
+
+              {/* Property Features */}
+              {post.postDetail && (
+                <div className="backdrop-blur-xl bg-white/70 dark:bg-dark-800/80 border border-white/30 dark:border-dark-700 shadow-2xl rounded-3xl p-8 transition-colors duration-300">
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Property Features</h2>
+                  
+                  {/* General Features */}
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">General</h3>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <FeatureCard 
+                          icon={Shield}
+                          title="Utilities"
+                          description={post.postDetail.utilities === "owner" ? "Owner is responsible" : "Tenant is responsible"}
+                          color="blue"
+                        />
+                        <FeatureCard 
+                          icon={Home}
+                          title="Pet Policy"
+                          description={post.postDetail.pet === "Allowed" ? "Pets allowed" : "Pets not allowed"}
+                          color="green"
+                        />
+                        <FeatureCard 
+                          icon={DollarSign}
+                          title="Property Fees"
+                          description="Must have 3x the rent in total household income"
+                          color="purple"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Sizes */}
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-800 mb-4">Sizes</h3>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <SizeCard 
+                          icon={Ruler}
+                          value={post.postDetail.size}
+                          label="Size"
+                          color="blue"
+                        />
+                        <SizeCard 
+                          icon={Bed}
+                          value={`${post.bedroom} bedroom`}
+                          label="Bedrooms"
+                          color="purple"
+                        />
+                        <SizeCard 
+                          icon={Bath}
+                          value={`${post.bathroom} bathroom`}
+                          label="Bathrooms"
+                          color="pink"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Nearby Places */}
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-800 mb-4">Nearby Places</h3>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <NearbyCard 
+                          icon={GraduationCap}
+                          title="School"
+                          distance={post.postDetail.school > 999 ? `${post.postDetail.school/1000}km` : `${post.postDetail.school}m`}
+                          color="blue"
+                        />
+                        <NearbyCard 
+                          icon={Bus}
+                          title="Bus Stop"
+                          distance={`${post.postDetail.bus}m`}
+                          color="green"
+                        />
+                        <NearbyCard 
+                          icon={Utensils}
+                          title="Restaurant"
+                          distance={`${post.postDetail.restaurant}m`}
+                          color="orange"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Map */}
+              <div className="backdrop-blur-xl bg-white/70 border border-white/30 shadow-2xl rounded-3xl p-8">
+                <h2 className="text-2xl font-bold text-gray-800 mb-6">Location</h2>
+                <div className="h-96 rounded-2xl overflow-hidden">
+                  <Map propertyData={[post]} />
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Action Buttons */}
+              <div className="backdrop-blur-xl bg-white/70 border border-white/30 shadow-2xl rounded-3xl p-6">
+                <div className="space-y-4">
+                  <button 
+                    onClick={handleSendMessage}
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-300"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    Send a Message
+                  </button>
+                  
+                  <button 
+                    onClick={handleSave}
+                    className={`w-full flex items-center justify-center gap-2 font-semibold py-3 px-6 rounded-xl transition-all duration-300 ${
+                      saved 
+                        ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg transform scale-105' 
+                        : 'bg-white/80 border border-white/30 text-gray-700 hover:bg-white hover:shadow-lg'
+                    }`}
+                  >
+                    <Heart className={`w-5 h-5 ${saved ? 'fill-current' : ''}`} />
+                    {saved ? "Place Saved" : "Save the Place"}
+                  </button>
+                  
+                  <button 
+                    onClick={handleShareProperty}
+                    className="w-full flex items-center justify-center gap-2 bg-gray-100 text-gray-700 font-semibold py-3 px-6 rounded-xl hover:bg-gray-200 transition-all duration-300"
+                  >
+                    <Share2 className="w-5 h-5" />
+                    Share Property
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Info */}
+              <div className="backdrop-blur-xl bg-white/70 border border-white/30 shadow-2xl rounded-3xl p-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">Quick Info</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Property Type</span>
+                    <span className="font-semibold text-gray-800">{post.type}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Bedrooms</span>
+                    <span className="font-semibold text-gray-800">{post.bedroom}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Bathrooms</span>
+                    <span className="font-semibold text-gray-800">{post.bathroom}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Size</span>
+                    <span className="font-semibold text-gray-800">{post.postDetail?.size}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes blob {
+          0% { transform: translate(0px, 0px) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+          100% { transform: translate(0px, 0px) scale(1); }
+        }
+        
+        .animate-blob {
+          animation: blob 7s infinite;
+        }
+        
+        .animation-delay-2000 {
+          animation-delay: 2s;
+        }
+        
+        .animation-delay-4000 {
+          animation-delay: 4s;
+        }
+      `}</style>
     </div>
-  )
+  );
 }
 
-export default SinglePage
+// Feature Card Component
+function FeatureCard({ icon: Icon, title, description, color }) {
+  const colorClasses = {
+    blue: 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30',
+    green: 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30',
+    purple: 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30',
+    orange: 'text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30'
+  };
+
+  return (
+    <div className="flex items-center gap-4 p-4 bg-white/50 dark:bg-dark-700/50 rounded-2xl border border-white/30 dark:border-dark-600 transition-colors duration-300">
+      <div className={`p-3 rounded-xl ${colorClasses[color]}`}>
+        <Icon className="w-6 h-6" />
+      </div>
+      <div>
+        <div className="font-semibold text-gray-800 dark:text-gray-100">{title}</div>
+        <div className="text-sm text-gray-600 dark:text-gray-300">{description}</div>
+      </div>
+    </div>
+  );
+}
+
+// Size Card Component
+function SizeCard({ icon: Icon, value, label, color }) {
+  const colorClasses = {
+    blue: 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30',
+    purple: 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30',
+    pink: 'text-pink-600 bg-pink-100 dark:text-pink-400 dark:bg-pink-900/30'
+  };
+
+  return (
+    <div className="flex items-center gap-4 p-4 bg-white/50 dark:bg-dark-700/50 rounded-2xl border border-white/30 dark:border-dark-600 transition-colors duration-300">
+      <div className={`p-3 rounded-xl ${colorClasses[color]}`}>
+        <Icon className="w-6 h-6" />
+      </div>
+      <div>
+        <div className="font-semibold text-gray-800 dark:text-gray-100">{value}</div>
+        <div className="text-sm text-gray-600 dark:text-gray-300">{label}</div>
+      </div>
+    </div>
+  );
+}
+
+// Nearby Card Component
+function NearbyCard({ icon: Icon, title, distance, color }) {
+  const colorClasses = {
+    blue: 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30',
+    green: 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30',
+    orange: 'text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30'
+  };
+
+  return (
+    <div className="flex items-center gap-4 p-4 bg-white/50 dark:bg-dark-700/50 rounded-2xl border border-white/30 dark:border-dark-600 transition-colors duration-300">
+      <div className={`p-3 rounded-xl ${colorClasses[color]}`}>
+        <Icon className="w-6 h-6" />
+      </div>
+      <div>
+        <div className="font-semibold text-gray-800 dark:text-gray-100">{title}</div>
+        <div className="text-sm text-gray-600 dark:text-gray-300">{distance} away</div>
+      </div>
+    </div>
+  );
+}
+
+export default SinglePage;

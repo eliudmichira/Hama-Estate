@@ -1,0 +1,41 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "main": "app.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node --require ./loadEnv.cjs app.js",
+    "dev": "nodemon --require ./loadEnv.cjs app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@googlemaps/markerclusterer": "^2.6.2",
+    "@mantine/core": "^8.1.3",
+    "@mantine/dates": "^8.1.3",
+    "@mantine/dropzone": "^8.1.3",
+    "@mantine/form": "^8.1.3",
+    "@mantine/hooks": "^8.1.3",
+    "@mantine/modals": "^8.1.3",
+    "@mantine/notifications": "^8.1.3",
+    "@mantine/spotlight": "^8.1.3",
+    "@prisma/client": "^6.7.0",
+    "bcrypt": "^5.1.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.0",
+    "express": "^4.21.2",
+    "firebase": "^11.10.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemon": "^3.1.9",
+    "openssl": "^2.0.0",
+    "react-hook-form": "^7.60.0",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "prisma": "^6.7.0"
+  }
+}
