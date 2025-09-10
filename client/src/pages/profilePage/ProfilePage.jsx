@@ -12,7 +12,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!currentUser) {
-      navigate('/login');
+      navigate('/desktop/login');
       return;
     }
     setName(currentUser.name || '');

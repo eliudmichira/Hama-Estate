@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import analyticsService from '../lib/analytics';
@@ -8,11 +8,19 @@ import { incrementPageView } from '../lib/pageViews';
 export const useAnalytics = () => {
   const location = useLocation();
   const { currentUser } = useAuth();
+  const lastTrackedPage = useRef(null);
 
   // Track page views automatically
   useEffect(() => {
     const pageName = location.pathname;
     const pageTitle = document.title;
+    
+    // Prevent duplicate tracking of the same page
+    if (lastTrackedPage.current === pageName) {
+      return;
+    }
+    
+    lastTrackedPage.current = pageName;
     
     analyticsService.trackPageView(pageName, pageTitle);
     

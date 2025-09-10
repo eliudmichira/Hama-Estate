@@ -168,7 +168,7 @@ const Navbar = () => {
   };
 
   return (
-    <header
+    <motion.header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${
         isDark
           ? isScrolled
@@ -178,115 +178,207 @@ const Navbar = () => {
           ? "bg-white/95 shadow-[0_8px_32px_rgba(0,0,0,0.1)] border-b border-gray-200/50"
           : "bg-transparent"
       } backdrop-blur-xl`}
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
     >
       <div className="w-full px-8 lg:px-16">
         <div className="flex items-center justify-between h-20">
           
-          {/* Left: Logo */}
+          {/* Enhanced Left: Logo */}
           <div className="flex items-center">
-            <Link to="/" className="group">
-              <Logo 
-                className={`group-hover:opacity-80 transition-opacity duration-300 ${
-                  isDark ? "text-white" : "text-gray-900"
-                }`}
-                isDark={isDark}
-              />
-            </Link>
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            >
+              <Link to="/" className="group">
+                <Logo 
+                  className={`group-hover:opacity-80 transition-all duration-300 ${
+                    isDark ? "text-white" : "text-gray-900"
+                  }`}
+                  isDark={isDark}
+                />
+              </Link>
+            </motion.div>
           </div>
 
           {/* Center: Search + Nav */}
           <div className="hidden lg:flex items-center gap-16">
-            {/* Desktop Search */}
-            <div className="w-96" ref={searchRef}>
-              <div
-                className={`relative w-full transition-all duration-300 ${
-                  isSearchFocused ? "transform scale-105" : ""
-                }`}
+            {/* Enhanced Desktop Search */}
+            <motion.div 
+              className="w-96" 
+              ref={searchRef}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <motion.div
+                className="relative w-full"
+                animate={{
+                  scale: isSearchFocused ? 1.02 : 1,
+                  y: isSearchFocused ? -2 : 0
+                }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <motion.div 
+                  className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"
+                  animate={{
+                    scale: isSearchFocused ? 1.1 : 1
+                  }}
+                  transition={{ duration: 0.2 }}
+                >
                   <Search
-                    className={`w-5 h-5 ${
-                      isDark ? "text-white/60" : "text-gray-400"
+                    className={`w-5 h-5 transition-colors duration-300 ${
+                      isSearchFocused 
+                        ? (isDark ? "text-[#51faaa]" : "text-[#10b981]")
+                        : (isDark ? "text-white/60" : "text-gray-400")
                     }`}
                   />
-                </div>
+                </motion.div>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearchSubmit()}
                   placeholder={`Search properties in ${typedText}${typedText.length < 1 ? '' : '…'}`}
-                  className={`w-full pl-12 pr-6 py-3.5 rounded-full focus:outline-none focus:ring-2 focus:ring-[#51faaa]/20 focus:border-[#51faaa]/30 transition-all ${
+                  className={`w-full pl-12 pr-6 py-3.5 rounded-full focus:outline-none focus:ring-2 focus:ring-[#51faaa]/20 focus:border-[#51faaa]/30 transition-all duration-300 hover:shadow-lg ${
                     isDark
-                      ? "bg-white/5 border border-white/10 text-white placeholder-white/60"
-                      : "bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-500"
+                      ? "bg-white/5 border border-white/10 text-white placeholder-white/60 hover:bg-white/10 hover:border-white/20"
+                      : "bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white hover:border-gray-300 hover:shadow-[#10b981]/10"
                   }`}
                   onFocus={() => setIsSearchFocused(true)}
                   onBlur={() => setIsSearchFocused(false)}
                 />
                 
-                {/* Search Suggestions Dropdown */}
+                {/* Enhanced Search Suggestions Dropdown */}
                 {showSuggestions && searchSuggestions.length > 0 && (
-                  <div className={`absolute top-full left-0 right-0 mt-2 rounded-xl shadow-xl border transition-all duration-300 ${
-                    isDark 
-                      ? 'bg-[#0a0c19] border-white/10' 
-                      : 'bg-white border-gray-200'
-                  }`}>
+                  <motion.div 
+                    className={`absolute top-full left-0 right-0 mt-2 rounded-xl shadow-xl border backdrop-blur-xl ${
+                      isDark 
+                        ? 'bg-[#0a0c19]/95 border-white/10' 
+                        : 'bg-white/95 border-gray-200'
+                    }`}
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                  >
                     {searchSuggestions.map((suggestion, index) => (
-                      <button
+                      <motion.button
                         key={index}
                         onClick={() => handleSuggestionClick(suggestion)}
-                        className={`w-full px-4 py-3 text-left hover:bg-[#51faaa]/10 transition-colors ${
+                        className={`w-full px-4 py-3 text-left transition-all duration-200 ${
                           isDark ? 'text-white hover:text-[#51faaa]' : 'text-gray-700 hover:text-[#51faaa]'
                         } ${index === 0 ? 'rounded-t-xl' : ''} ${index === searchSuggestions.length - 1 ? 'rounded-b-xl' : ''}`}
+                        whileHover={{ 
+                          backgroundColor: isDark ? 'rgba(81, 250, 170, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                          x: 4
+                        }}
+                        transition={{ duration: 0.2 }}
                       >
                         <div className="flex items-center gap-3">
-                          <Search className="w-4 h-4 opacity-60" />
+                          <motion.div
+                            whileHover={{ scale: 1.1, rotate: 5 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <Search className="w-4 h-4 opacity-60" />
+                          </motion.div>
                           <span>{suggestion}</span>
                         </div>
-                      </button>
+                      </motion.button>
                     ))}
-                  </div>
+                  </motion.div>
                 )}
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
 
-            {/* Desktop Nav */}
-            <nav className="flex items-center gap-12">
-              {["Properties", "Agents", "About"].map((item) => (
-                <Link
+            {/* Enhanced Desktop Nav */}
+            <motion.nav 
+              className="flex items-center gap-12"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
+              {["Properties", "Agents", "RentaKenya", "Tenant Portal"].map((item, index) => (
+                <motion.div
                   key={item}
-                  to={`/${item.toLowerCase()}`}
-                  className={`font-medium transition-colors relative group ${
-                    isDark
-                      ? "text-white/80 hover:text-white"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.5 + index * 0.1 }}
                 >
-                  {item}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#51faaa] transition-all group-hover:w-full"></span>
-                </Link>
+                  <Link
+                    to={item === "Tenant Portal" ? "/tenant-login" : `/desktop/${item.toLowerCase()}`}
+                    className={`font-medium transition-all duration-300 relative group ${
+                      isDark
+                        ? "text-white/80 hover:text-white"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    <motion.span
+                      whileHover={{ y: -2 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      {item}
+                    </motion.span>
+                    <motion.span 
+                      className="absolute -bottom-1 left-0 h-0.5 bg-[#51faaa]"
+                      initial={{ width: 0 }}
+                      whileHover={{ width: "100%" }}
+                      transition={{ duration: 0.3, ease: "easeInOut" }}
+                    />
+                    {/* Subtle glow effect on hover */}
+                    <motion.div
+                      className="absolute -bottom-1 left-0 h-0.5 bg-[#51faaa] opacity-0"
+                      whileHover={{ 
+                        width: "100%",
+                        opacity: 0.3,
+                        boxShadow: "0 0 8px rgba(81, 250, 170, 0.5)"
+                      }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </Link>
+                </motion.div>
               ))}
-            </nav>
+            </motion.nav>
           </div>
 
-          {/* Right: Auth + Theme */}
-          <div className="flex items-center gap-8">
+          {/* Enhanced Right: Auth + Theme */}
+          <motion.div 
+            className="flex items-center gap-8"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+          >
             <motion.button
               onClick={toggleTheme}
-              className={`relative transition-all duration-300 rounded-full p-2 ${
+              className={`relative transition-all duration-300 rounded-full p-2 overflow-hidden ${
                 isDark 
                   ? "text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10 hover:shadow-[0_4px_16px_rgba(251,191,36,0.3)]" 
                   : "text-gray-800 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-100 hover:bg-gray-200/50 dark:hover:bg-gray-700/30 hover:shadow-[0_4px_16px_rgba(0,0,0,0.1)]"
               }`}
-              whileHover={{ scale: 1.1 }}
+              whileHover={{ 
+                scale: 1.1,
+                y: -2
+              }}
               whileTap={{ scale: 0.9 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               aria-label="Toggle theme"
             >
+              {/* Subtle background glow on hover */}
               <motion.div
+                className="absolute inset-0 rounded-full opacity-0"
+                whileHover={{ 
+                  opacity: 0.1,
+                  backgroundColor: isDark ? "#fbbf24" : "#6b7280"
+                }}
+                transition={{ duration: 0.3 }}
+              />
+              <motion.div
+                className="relative z-10"
                 animate={{ rotate: isDark ? 180 : 0 }}
                 transition={{ duration: 0.5, ease: "easeInOut" }}
+                whileHover={{ scale: 1.1 }}
               >
                 {isDark ? (
                   <Sun className="w-6 h-6 drop-shadow-sm" />
@@ -297,10 +389,22 @@ const Navbar = () => {
             </motion.button>
 
             {currentUser ? (
-              <div className="relative" ref={profileDropdownRef}>
-                <button
+              <motion.div 
+                className="relative" 
+                ref={profileDropdownRef}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: 0.8 }}
+              >
+                <motion.button
                   onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 transition-all duration-300 group"
+                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 transition-all duration-300 group relative overflow-hidden"
+                  whileHover={{ 
+                    scale: 1.02,
+                    y: -1
+                  }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 >
                   {/* User Avatar */}
                   <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-[#51faaa]/30 group-hover:border-[#51faaa] transition-colors">
@@ -369,11 +473,17 @@ const Navbar = () => {
                   </div>
                   
                   <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isProfileDropdownOpen ? 'rotate-180' : ''} ${isDark ? 'text-white/60' : 'text-gray-500'}`} />
-                </button>
+                </motion.button>
 
-                {/* Profile Dropdown */}
+                {/* Enhanced Profile Dropdown */}
                 {isProfileDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
+                  <motion.div 
+                    className="absolute right-0 top-full mt-2 w-64 bg-white/95 dark:bg-gray-800/95 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50 backdrop-blur-xl"
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                  >
                     {/* User Header */}
                     <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                       <div className="flex items-center gap-3">
@@ -409,17 +519,27 @@ const Navbar = () => {
                       {userRole === 'admin' ? (
                         // Admin Menu Items
                         <>
-                          <Link
-                            to="/admin"
-                            onClick={() => setIsProfileDropdownOpen(false)}
-                            className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                          <motion.div
+                            whileHover={{ x: 4 }}
+                            transition={{ duration: 0.2 }}
                           >
-                            <Crown className="w-4 h-4 text-purple-500" />
-                            <span>Admin Panel</span>
-                          </Link>
+                            <Link
+                              to="/desktop/admin"
+                              onClick={() => setIsProfileDropdownOpen(false)}
+                              className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                            >
+                              <motion.div
+                                whileHover={{ scale: 1.1, rotate: 5 }}
+                                transition={{ duration: 0.2 }}
+                              >
+                                <Crown className="w-4 h-4 text-purple-500" />
+                              </motion.div>
+                              <span>Admin Panel</span>
+                            </Link>
+                          </motion.div>
                           
                           <Link
-                            to="/admin?section=users"
+                            to="/desktop/admin?section=users"
                             onClick={() => setIsProfileDropdownOpen(false)}
                             className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                           >
@@ -428,7 +548,7 @@ const Navbar = () => {
                           </Link>
                           
                           <Link
-                            to="/admin?section=moderation"
+                            to="/desktop/admin?section=moderation"
                             onClick={() => setIsProfileDropdownOpen(false)}
                             className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                           >
@@ -437,7 +557,7 @@ const Navbar = () => {
                           </Link>
                           
                           <Link
-                            to="/admin?section=analytics"
+                            to="/desktop/admin?section=analytics"
                             onClick={() => setIsProfileDropdownOpen(false)}
                             className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                           >
@@ -449,7 +569,7 @@ const Navbar = () => {
                         // Agent Menu Items
                         <>
                           <Link
-                            to="/dashboard"
+                            to="/desktop/dashboard"
                             onClick={() => setIsProfileDropdownOpen(false)}
                             className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                           >
@@ -488,7 +608,7 @@ const Navbar = () => {
                         // Regular User Menu Items
                         <>
                           <Link
-                            to="/dashboard"
+                            to="/desktop/dashboard"
                             onClick={() => setIsProfileDropdownOpen(false)}
                             className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                           >
@@ -561,23 +681,52 @@ const Navbar = () => {
                         <span>Sign Out</span>
                       </button>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
-              </div>
+              </motion.div>
             ) : (
-              <div className="flex items-center gap-3">
-                <Link to="/login" className={`${isDark ? "text-white/80" : "text-gray-600"} hover:text-[#51faaa]`}>
-                  Sign In
-                </Link>
-                <Link
-                  to="/register"
-                  className="px-5 py-2 bg-gradient-to-br from-[#51faaa] to-[#dbd5a4] text-[#111] rounded-xl font-medium hover:shadow-lg hover:scale-105 transition-all"
+              <motion.div 
+                className="flex items-center gap-3"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.8 }}
+              >
+                <motion.div
+                  whileHover={{ y: -2 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  Get Started
-                </Link>
-              </div>
+                  <Link 
+                    to="/desktop/login" 
+                    className={`${isDark ? "text-white/80" : "text-gray-600"} hover:text-[#51faaa] transition-colors duration-300`}
+                  >
+                    Sign In
+                  </Link>
+                </motion.div>
+                <motion.div
+                  whileHover={{ 
+                    scale: 1.05,
+                    y: -2
+                  }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                >
+                  <Link
+                    to="/desktop/register"
+                    className="px-5 py-2 bg-gradient-to-br from-[#51faaa] to-[#dbd5a4] text-[#111] rounded-xl font-medium hover:shadow-lg transition-all duration-300 relative overflow-hidden block"
+                  >
+                    {/* Shimmer effect */}
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
+                      initial={{ x: '-100%' }}
+                      whileHover={{ x: '100%' }}
+                      transition={{ duration: 0.6 }}
+                    />
+                    <span className="relative z-10">Get Started</span>
+                  </Link>
+                </motion.div>
+              </motion.div>
             )}
-          </div>
+          </motion.div>
         </div>
       </div>
 
@@ -630,10 +779,10 @@ const Navbar = () => {
 
             {/* Mobile Navigation */}
             <nav className="space-y-4">
-              {["Properties", "Agents", "About"].map((item) => (
+              {["Properties", "Agents", "RentaKenya", "Tenant Portal"].map((item) => (
                 <Link
                   key={item}
-                  to={`/${item.toLowerCase()}`}
+                  to={item === "Tenant Portal" ? "/tenant-login" : `/desktop/${item.toLowerCase()}`}
                   onClick={() => setIsMenuOpen(false)}
                   className={`block font-medium transition-colors ${
                     isDark
@@ -681,7 +830,7 @@ const Navbar = () => {
                     // Admin Mobile Menu Items
                     <>
                       <Link
-                        to="/admin"
+                        to="/desktop/admin"
                         onClick={() => setIsMenuOpen(false)}
                         className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       >
@@ -690,7 +839,7 @@ const Navbar = () => {
                       </Link>
                       
                       <Link
-                        to="/admin?section=users"
+                        to="/desktop/admin?section=users"
                         onClick={() => setIsMenuOpen(false)}
                         className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       >
@@ -699,7 +848,7 @@ const Navbar = () => {
                       </Link>
                       
                       <Link
-                        to="/admin?section=moderation"
+                        to="/desktop/admin?section=moderation"
                         onClick={() => setIsMenuOpen(false)}
                         className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       >
@@ -708,7 +857,7 @@ const Navbar = () => {
                       </Link>
                       
                       <Link
-                        to="/admin?section=analytics"
+                        to="/desktop/admin?section=analytics"
                         onClick={() => setIsMenuOpen(false)}
                         className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       >
@@ -720,7 +869,7 @@ const Navbar = () => {
                     // Agent Mobile Menu Items
                     <>
                       <Link
-                        to="/dashboard"
+                        to="/desktop/dashboard"
                         onClick={() => setIsMenuOpen(false)}
                         className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       >
@@ -759,7 +908,7 @@ const Navbar = () => {
                     // Regular User Mobile Menu Items
                     <>
                       <Link
-                        to="/dashboard"
+                        to="/desktop/dashboard"
                         onClick={() => setIsMenuOpen(false)}
                         className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       >
@@ -833,14 +982,14 @@ const Navbar = () => {
             ) : (
               <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <Link
-                  to="/login"
+                  to="/desktop/login"
                   onClick={() => setIsMenuOpen(false)}
                   className={`block font-medium ${isDark ? "text-white/80" : "text-gray-600"} hover:text-[#51faaa]`}
                 >
                   Sign In
                 </Link>
                 <Link
-                  to="/register"
+                  to="/desktop/register"
                   onClick={() => setIsMenuOpen(false)}
                   className="block w-full text-center px-5 py-3 bg-gradient-to-br from-[#51faaa] to-[#dbd5a4] text-[#111] rounded-xl font-medium hover:shadow-lg transition-all"
                 >
@@ -851,7 +1000,7 @@ const Navbar = () => {
           </div>
         </div>
       )}
-    </header>
+    </motion.header>
   );
 };
 

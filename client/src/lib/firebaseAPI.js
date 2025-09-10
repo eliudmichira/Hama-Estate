@@ -144,6 +144,13 @@ export const propertiesAPI = {
       return { properties };
     } catch (error) {
       console.error('Error fetching featured properties:', error);
+      
+      // Return empty array if Firestore is not set up yet
+      if (error.code === 'failed-precondition' || error.message.includes('400')) {
+        console.log('Firestore not set up yet, returning empty properties array');
+        return { properties: [] };
+      }
+      
       throw error;
     }
   },
@@ -348,13 +355,36 @@ export const storageAPI = {
   uploadImage: async (file, path) => {
     try {
       const storageRef = ref(storage, path);
-      const metadata = file?.type ? { contentType: file.type } : undefined;
+      const metadata = {
+        contentType: file?.type || 'image/jpeg',
+        cacheControl: 'public, max-age=31536000'
+      };
+      
+      console.log('🔄 Uploading image to path:', path);
+      console.log('📁 File details:', { name: file.name, size: file.size, type: file.type });
+      
       const snapshot = await uploadBytes(storageRef, file, metadata);
+      console.log('✅ Upload successful, getting download URL...');
+      
       const downloadURL = await getDownloadURL(snapshot.ref);
+      console.log('🔗 Download URL obtained:', downloadURL);
+      
       return downloadURL;
     } catch (error) {
-      console.error('Error uploading image:', error);
-      throw error;
+      console.error('❌ Error uploading image:', error);
+      
+      // Provide more specific error messages
+      if (error.code === 'storage/unauthorized') {
+        throw new Error('You do not have permission to upload files. Please make sure you are logged in.');
+      } else if (error.code === 'storage/canceled') {
+        throw new Error('Upload was canceled. Please try again.');
+      } else if (error.code === 'storage/unknown') {
+        throw new Error('An unknown error occurred during upload. This might be a CORS issue. Please contact support.');
+      } else if (error.message.includes('CORS')) {
+        throw new Error('CORS error: The storage bucket needs to be configured to allow uploads from this domain. Please contact the administrator.');
+      } else {
+        throw new Error(`Upload failed: ${error.message}`);
+      }
     }
   },
 
@@ -483,15 +513,21 @@ export const agentVerificationAPI = {
   // Request agent verification
   requestVerification: async (userId, agentData) => {
     try {
+      if (!userId) {
+        throw new Error('User ID is required for verification request');
+      }
+      
       const docRef = doc(db, 'agents', userId);
-      await setDoc(docRef, {
+      const verificationData = {
         ...agentData,
         verified: false,
         verificationRequested: true,
         verificationRequestedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      }, { merge: true });
+      };
+      
+      await setDoc(docRef, verificationData, { merge: true });
       
       return { success: true };
     } catch (error) {
@@ -832,13 +868,15 @@ export const messagesAPI = {
   updateUserOnlineStatus: async (userId, isOnline) => {
     try {
       const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, {
+      // Use setDoc with merge to create document if it doesn't exist
+      await setDoc(userRef, {
         isOnline,
         lastSeen: serverTimestamp(),
         updatedAt: serverTimestamp()
-      });
+      }, { merge: true });
     } catch (error) {
       console.error('Error updating user online status:', error);
+      // Don't throw error to prevent breaking other functionality
     }
   }
 };
@@ -861,15 +899,28 @@ export const accountDashboardAPI = {
         console.log('Property:', doc.id, 'userId:', data.userId, 'agent.id:', data.agent?.id);
       });
       
-      // First try with ordering
-      const q = query(
-        collection(db, 'properties'),
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
-      );
+      // Try with ordering first, fallback to no ordering if index not ready
+      let querySnapshot;
+      let properties = [];
       
-      const querySnapshot = await getDocs(q);
-      const properties = [];
+      try {
+        const q = query(
+          collection(db, 'properties'),
+          where('userId', '==', userId),
+          orderBy('createdAt', 'desc')
+        );
+        querySnapshot = await getDocs(q);
+        console.log('getUserProperties: Used ordered query successfully');
+      } catch (orderError) {
+        console.log('getUserProperties: Ordered query failed (index not ready), trying without ordering:', orderError.message);
+        // Fallback to query without ordering
+        const qNoOrder = query(
+          collection(db, 'properties'),
+          where('userId', '==', userId)
+        );
+        querySnapshot = await getDocs(qNoOrder);
+        console.log('getUserProperties: Used fallback query without ordering');
+      }
       
       querySnapshot.forEach((doc) => {
         properties.push({
@@ -877,6 +928,16 @@ export const accountDashboardAPI = {
           ...doc.data()
         });
       });
+
+      // Sort manually if we couldn't use orderBy
+      if (properties.length > 0 && !properties[0].createdAt) {
+        console.log('getUserProperties: Sorting manually by createdAt');
+        properties.sort((a, b) => {
+          const aTime = a.createdAt?.toDate?.() || a.createdAt || new Date(0);
+          const bTime = b.createdAt?.toDate?.() || b.createdAt || new Date(0);
+          return bTime - aTime;
+        });
+      }
 
       console.log('getUserProperties: Found', properties.length, 'properties with userId:', userId);
       
@@ -1096,15 +1157,28 @@ export const accountDashboardAPI = {
     try {
       console.log('getAgentInquiries called with agentId:', agentId);
       
-      // First try with ordering
-      const q = query(
-        collection(db, 'inquiries'),
-        where('agentId', '==', agentId),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const querySnapshot = await getDocs(q);
+      // Try with ordering first, fallback to no ordering if index not ready
+      let querySnapshot;
       const inquiries = [];
+      
+      try {
+        const q = query(
+          collection(db, 'inquiries'),
+          where('agentId', '==', agentId),
+          orderBy('createdAt', 'desc')
+        );
+        querySnapshot = await getDocs(q);
+        console.log('getAgentInquiries: Used ordered query successfully');
+      } catch (orderError) {
+        console.log('getAgentInquiries: Ordered query failed (index not ready), trying without ordering:', orderError.message);
+        // Fallback to query without ordering
+        const qNoOrder = query(
+          collection(db, 'inquiries'),
+          where('agentId', '==', agentId)
+        );
+        querySnapshot = await getDocs(qNoOrder);
+        console.log('getAgentInquiries: Used fallback query without ordering');
+      }
       
       console.log('Found inquiries from inquiries collection:', querySnapshot.size);
       
@@ -1114,6 +1188,15 @@ export const accountDashboardAPI = {
           ...doc.data()
         });
       });
+      
+      // Sort manually if we couldn't use orderBy
+      if (inquiries.length > 0) {
+        inquiries.sort((a, b) => {
+          const aTime = a.createdAt?.toDate?.() || a.createdAt || new Date(0);
+          const bTime = b.createdAt?.toDate?.() || b.createdAt || new Date(0);
+          return bTime - aTime;
+        });
+      }
 
              // Also get inquiries from conversations where the agent is a participant
        try {
@@ -1308,5 +1391,360 @@ export const accountDashboardAPI = {
         properties: 0
       };
     }
+  },
+
+  // Get user's view history
+  getUserViewHistory: async (userId) => {
+    try {
+      // Get user's page views from pageViews collection
+      const pageViewsQuery = query(
+        collection(db, 'pageViews'),
+        where('userId', '==', userId),
+        orderBy('timestamp', 'desc'),
+        limit(10)
+      );
+      
+      const snapshot = await getDocs(pageViewsQuery);
+      const viewHistory = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.page && data.page.includes('/property/')) {
+          viewHistory.push({
+            id: doc.id,
+            propertyId: data.page.split('/property/')[1],
+            title: data.title || 'Property',
+            viewedAt: data.timestamp?.toDate() || new Date(),
+            page: data.page
+          });
+        }
+      });
+
+      return viewHistory;
+    } catch (error) {
+      console.error('Error getting user view history:', error);
+      return [];
+    }
+  },
+
+  // Get recommended properties for user
+  getRecommendedProperties: async (userId) => {
+    try {
+      // Simple recommendation: get featured properties and recent properties
+      const featuredQuery = query(
+        collection(db, 'properties'),
+        where('featured', '==', true),
+        limit(3)
+      );
+      
+      const recentQuery = query(
+        collection(db, 'properties'),
+        orderBy('createdAt', 'desc'),
+        limit(3)
+      );
+
+      const [featuredSnapshot, recentSnapshot] = await Promise.all([
+        getDocs(featuredQuery),
+        getDocs(recentQuery)
+      ]);
+
+      const recommendations = new Map();
+
+      // Add featured properties
+      featuredSnapshot.forEach((doc) => {
+        recommendations.set(doc.id, {
+          id: doc.id,
+          ...doc.data(),
+          reason: 'Featured Property'
+        });
+      });
+
+      // Add recent properties if not already included
+      recentSnapshot.forEach((doc) => {
+        if (!recommendations.has(doc.id)) {
+          recommendations.set(doc.id, {
+            id: doc.id,
+            ...doc.data(),
+            reason: 'Recently Listed'
+          });
+        }
+      });
+
+      return Array.from(recommendations.values()).slice(0, 6);
+    } catch (error) {
+      console.error('Error getting recommended properties:', error);
+      return [];
+    }
+  },
+
+  // Get user's activity history
+  getUserActivity: async (userId) => {
+    try {
+      const activities = [];
+      
+      // Get recent page views
+      try {
+        const pageViewsQuery = query(
+          collection(db, 'pageViews'),
+          where('userId', '==', userId),
+          orderBy('timestamp', 'desc'),
+          limit(5)
+        );
+        
+        const viewsSnapshot = await getDocs(pageViewsQuery);
+        viewsSnapshot.forEach((doc) => {
+          const data = doc.data();
+          activities.push({
+            id: doc.id,
+            type: 'view',
+            description: `Viewed ${data.page || 'a page'}`,
+            timestamp: data.timestamp?.toDate() || new Date(),
+            icon: 'Eye'
+          });
+        });
+      } catch (error) {
+        console.log('Could not load page views for activity');
+      }
+
+      // Get recent favorites (from user's favorites subcollection)
+      try {
+        const favoritesQuery = query(
+          collection(db, 'users', userId, 'favorites'),
+          orderBy('createdAt', 'desc'),
+          limit(3)
+        );
+        
+        const favoritesSnapshot = await getDocs(favoritesQuery);
+        favoritesSnapshot.forEach((doc) => {
+          const data = doc.data();
+          activities.push({
+            id: doc.id,
+            type: 'favorite',
+            description: `Added ${data.title || 'a property'} to favorites`,
+            timestamp: data.createdAt?.toDate() || new Date(),
+            icon: 'Heart'
+          });
+        });
+      } catch (error) {
+        console.log('Could not load favorites for activity');
+      }
+
+      // Sort all activities by timestamp
+      activities.sort((a, b) => b.timestamp - a.timestamp);
+      
+      return activities.slice(0, 10);
+    } catch (error) {
+      console.error('Error getting user activity:', error);
+      return [];
+    }
   }
+};
+
+// Testimonials API
+export const testimonialsAPI = {
+  // Get recent testimonials
+  getAll: async (limitCount = 12) => {
+    try {
+      const q = query(
+        collection(db, 'testimonials'),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
+      );
+      const snapshot = await getDocs(q);
+      const testimonials = [];
+      snapshot.forEach((docSnap) => {
+        testimonials.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      return testimonials;
+    } catch (error) {
+      console.error('Error fetching testimonials:', error);
+      return [];
+    }
+  },
+
+  // Create a new testimonial/review
+  create: async ({ name, location, rating = 5, comment, avatar = '' }) => {
+    try {
+      if (!name || !comment) {
+        throw new Error('Name and comment are required');
+      }
+      const payload = {
+        name,
+        location: location || '',
+        rating: Number(rating) || 5,
+        comment,
+        avatar,
+        createdAt: serverTimestamp()
+      };
+      const ref = await addDoc(collection(db, 'testimonials'), payload);
+      return { id: ref.id, ...payload };
+    } catch (error) {
+      console.error('Error creating testimonial:', error);
+      throw error;
+    }
+  }
+};
+
+// Trial signup functions
+export const trialAPI = {
+  // Create a new trial signup
+  create: async (formData) => {
+    try {
+      console.log('🔥 Creating trial signup with Firebase...');
+      console.log('📝 Form data received:', formData);
+      
+      // Generate trial ID and credentials
+      const trialId = `trial_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const tempPassword = generateSecurePassword();
+      const trialExpiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
+      
+      // Create trial signup document
+      const trialData = {
+        trialId,
+        ...formData,
+        tempPassword,
+        status: 'active',
+        trialExpiryDate: Timestamp.fromDate(trialExpiryDate),
+        createdAt: serverTimestamp(),
+        source: 'rentakenya-landing',
+        emailSent: false,
+        onboardingScheduled: false
+      };
+      
+      // Save to Firestore
+      console.log('💾 Saving trial data to Firestore:', trialData);
+      const docRef = await addDoc(collection(db, 'trialSignups'), trialData);
+      console.log('✅ Trial signup created with Firestore ID:', docRef.id);
+      console.log('🔑 Generated credentials - Trial ID:', trialId, 'Password:', tempPassword);
+      
+      // Trigger email sending (this will be handled by Firebase Functions)
+      await addDoc(collection(db, 'emailQueue'), {
+        type: 'trial_welcome',
+        trialId,
+        recipientEmail: formData.email,
+        recipientName: formData.fullName,
+        templateData: {
+          fullName: formData.fullName,
+          trialId,
+          tempPassword,
+          expiryDate: trialExpiryDate.toLocaleDateString(),
+          dashboardUrl: `${window.location.origin}/trial-dashboard`
+        },
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+      
+      // Send notification to sales team
+      await addDoc(collection(db, 'emailQueue'), {
+        type: 'sales_notification',
+        recipientEmail: 'eliudmichira7@gmail.com',
+        templateData: {
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          businessType: formData.businessType,
+          propertyCount: formData.propertyCount,
+          location: formData.location,
+          interests: formData.interests?.join(', ') || 'None specified',
+          timeline: formData.timeline,
+          trialId,
+          signupTime: new Date().toLocaleString()
+        },
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+      
+      // Track analytics
+      await addDoc(collection(db, 'analytics'), {
+        event: 'trial_signup_completed',
+        data: {
+          trialId,
+          businessType: formData.businessType,
+          propertyCount: formData.propertyCount,
+          location: formData.location,
+          interests: formData.interests,
+          timeline: formData.timeline
+        },
+        timestamp: serverTimestamp()
+      });
+      
+      console.log('✅ Trial signup process completed successfully');
+      
+      return {
+        success: true,
+        trialId,
+        expiryDate: trialExpiryDate,
+        message: 'Trial account created successfully'
+      };
+      
+    } catch (error) {
+      console.error('❌ Error creating trial signup:', error);
+      throw error;
+    }
+  },
+
+  // Get trial status by ID
+  getStatus: async (trialId) => {
+    try {
+      const q = query(
+        collection(db, 'trialSignups'),
+        where('trialId', '==', trialId),
+        limit(1)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        return { exists: false };
+      }
+      
+      const trialDoc = querySnapshot.docs[0];
+      const trialData = trialDoc.data();
+      
+      return {
+        exists: true,
+        ...trialData,
+        id: trialDoc.id
+      };
+      
+    } catch (error) {
+      console.error('❌ Error getting trial status:', error);
+      throw error;
+    }
+  },
+
+  // Get all trial signups (for admin)
+  getAll: async () => {
+    try {
+      const q = query(
+        collection(db, 'trialSignups'),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const trials = [];
+      
+      querySnapshot.forEach((doc) => {
+        trials.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+      
+      return trials;
+    } catch (error) {
+      console.error('❌ Error getting all trials:', error);
+      throw error;
+    }
+  }
+};
+
+// Utility function for secure password generation
+const generateSecurePassword = () => {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let password = '';
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
 };

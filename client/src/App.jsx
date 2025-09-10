@@ -1,138 +1,141 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from './context/AuthContext';
-import { SocketContextProvider } from './context/SocketContext';
-import { ThemeProvider } from './context/ThemeContext';
-import AnalyticsProvider from './components/AnalyticsProvider';
-import PageLoader from './components/Preloader';
-import MobileNavigation from './components/EnhancedMobileNavigation';
-import PWAInstallPrompt from './components/EnhancedPWAInstallPrompt';
-import { Layout, RequireAuth } from './routes/layout/layout';
+import { Layout } from './routes/layout/layout';
 import ErrorBoundary from './components/ErrorBoundary';
+import { testFirebaseConnection } from './lib/firebase';
 
 // Lazy load components for better performance
-const HomePage = React.lazy(() => import('./routes/homePage/HomePage'));
-const MobileResponsiveWrapper = React.lazy(() => import('./components/MobileResponsiveWrapper'));
-const ListPage = React.lazy(() => import('./routes/listPage/listPage_fixed_useLocation'));
-const PropertyDetails = React.lazy(() => import('./routes/propertyDetails/propertyDetails'));
-const Login = React.lazy(() => import('./routes/login/login'));
-const Register = React.lazy(() => import('./routes/register/register'));
-const Contact = React.lazy(() => import('./routes/contact/contact'));
-const AboutPage = React.lazy(() => import('./routes/about/AboutPage'));
-const Dashboard = React.lazy(() => import('./routes/dashboard/dashboard'));
-const AccountDashboard = React.lazy(() => import('./routes/accountDashboard/AccountDashboard'));
-const AddProperty = React.lazy(() => import('./routes/properties/AddProperty'));
-const Agents = React.lazy(() => import('./routes/agents/Agents'));
-const AdminPanel = React.lazy(() => import('./routes/admin/AdminPanel'));
+const HomePage = lazy(() => import('./routes/homePage/HomePage'));
+const RentaKenyaPage = lazy(() => import('./routes/rentakenya/PropertyOwnerPortal'));
+const Contact = lazy(() => import('./routes/contact/contact'));
+const Agents = lazy(() => import('./routes/agents/Agents'));
+const MobileResponsiveWrapper = lazy(() => import('./components/MobileResponsiveWrapper'));
 
-// Create a client
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      cacheTime: 1000 * 60 * 10, // 10 minutes
-      retry: 1,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
-    },
-  },
-});
+// Legal pages
+const Privacy = lazy(() => import('../pages/Privacy'));
+const Terms = lazy(() => import('../pages/Terms'));
+const Cookies = lazy(() => import('../pages/Cookies'));
 
-// Custom Enhanced PageLoader for App.jsx
-const EnhancedPageLoader = ({ text = 'Welcome to Makao Homes' }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0c19]">
-    <div className="text-center space-y-8 max-w-md mx-auto px-6">
-      {/* Minimalist Logo Container */}
-      <div className="relative mx-auto w-32 h-32">
-        {/* Simple spinning ring */}
-        <div className="w-32 h-32 rounded-full border-2 border-[#51faaa]/20 border-t-[#51faaa] animate-spin" style={{ animationDuration: '2s' }} />
-        
-        {/* Center logo */}
-        <div className="absolute inset-8 w-16 h-16 rounded-full bg-[#51faaa] flex items-center justify-center shadow-lg">
-          <div className="text-[#0a0c19] font-bold text-2xl">M</div>
-        </div>
-      </div>
-      
-      {/* Clean Typography */}
-      <div className="space-y-4">
-        <h1 className="text-3xl font-bold text-white tracking-wide">
-          {text}
-        </h1>
-        <p className="text-lg text-[#dbd5a4] font-medium">
-          Finding your perfect home
-        </p>
-      </div>
-      
-      {/* Minimal loading dots */}
-      <div className="flex justify-center space-x-2">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className={`w-2 h-2 rounded-full bg-[#51faaa] animate-pulse`}
-            style={{ animationDelay: `${i * 0.2}s` }}
-          />
-        ))}
-      </div>
-    </div>
-  </div>
-);
+// Mobile-specific pages - using desktop components for now to avoid Router context issues
+const MobilePropertySearch = lazy(() => import('./routes/listPage/listPage_fixed_useLocation'));
+const MobilePropertyDetails = lazy(() => import('./routes/propertyDetails/propertyDetails'));
+const MobileAuth = lazy(() => import('./routes/login/login'));
+const MobileDashboard = lazy(() => import('./routes/dashboard/dashboard'));
+
+// Desktop pages
+const PropertyDetails = lazy(() => import('./routes/propertyDetails/propertyDetails'));
+const ListPage = lazy(() => import('./routes/listPage/listPage_fixed_useLocation'));
+const Login = lazy(() => import('./routes/login/login'));
+const Register = lazy(() => import('./routes/register/register'));
+const Dashboard = lazy(() => import('./routes/dashboard/dashboard'));
+const AdminPanel = lazy(() => import('./routes/admin/AdminPanel'));
+const AgentVerificationPage = lazy(() => import('./routes/agent-verification/AgentVerificationPage'));
+const AddProperty = lazy(() => import('./routes/properties/AddProperty'));
+const TrialLogin = lazy(() => import('./routes/trial-login/TrialLogin'));
+const TrialDashboard = lazy(() => import('./routes/trial-dashboard/TrialDashboard'));
+const PropertyManagement = lazy(() => import('./routes/trial-dashboard/PropertyManagement'));
+const TenantManagement = lazy(() => import('./routes/trial-dashboard/TenantManagement'));
+const RentCollection = lazy(() => import('./routes/trial-dashboard/RentCollection'));
+const MaintenanceManagement = lazy(() => import('./routes/trial-dashboard/MaintenanceManagement'));
+const FinancialReports = lazy(() => import('./routes/trial-dashboard/FinancialReports'));
+const DocumentStorage = lazy(() => import('./routes/trial-dashboard/DocumentStorage'));
+const PaymentRecording = lazy(() => import('./routes/trial-dashboard/PaymentRecording'));
+
+// Tenant Portal
+const TenantLogin = lazy(() => import('./routes/tenant-portal/TenantLogin'));
+const TenantDashboard = lazy(() => import('./routes/tenant-portal/TenantDashboard'));
 
 function App() {
+  // Test Firebase connection on app start
+  useEffect(() => {
+    const testConnection = async () => {
+      const result = await testFirebaseConnection();
+      if (result.success) {
+        console.log('🎉 Firebase is connected and working!');
+      } else {
+        console.error('💥 Firebase connection failed:', result.error);
+      }
+    };
+    
+    testConnection();
+  }, []);
+
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <AuthProvider>
-            <SocketContextProvider>
-              <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-                <AnalyticsProvider />
-                
-                <Suspense fallback={<EnhancedPageLoader text="Welcome to Hama Estate" />}>
-                  <Routes>
-                    {/* Mobile route - no layout, no footer */}
-                    <Route path="/" element={<MobileResponsiveWrapper />} />
-                    
-                    {/* Desktop routes with layout */}
-                    <Route path="/desktop" element={<Layout />}>
-                      <Route index element={<HomePage />} />
-                      <Route path="about" element={<AboutPage />} />
-                      <Route path="contact" element={<Contact />} />
-                      <Route path="agents" element={<Agents />} />
-                    </Route>
-                    
-                    {/* Other routes that don't need layout */}
-                    <Route path="/properties" element={<ListPage />} />
-                    <Route path="/property/:id" element={<PropertyDetails />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
-                    
-                    <Route path="/dashboard/*" element={<RequireAuth />}>
-                      <Route index element={<Dashboard />} />
-                    </Route>
-                    
-                    <Route path="/account" element={<RequireAuth />}>
-                      <Route index element={<AccountDashboard />} />
-                    </Route>
-                    
-                    <Route path="/properties/add" element={<RequireAuth />}>
-                      <Route index element={<AddProperty />} />
-                    </Route>
-                    
-                    <Route path="/admin/*" element={<RequireAuth />}>
-                      <Route index element={<AdminPanel />} />
-                    </Route>
-                  </Routes>
-                </Suspense>
-
-                {/* Mobile-specific components */}
-                <MobileNavigation />
-                <PWAInstallPrompt />
-              </Router>
-            </SocketContextProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </QueryClientProvider>
+      <Router>
+        <Suspense fallback={
+          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-16 h-16 border-4 border-[#51faaa] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600 dark:text-gray-400">Welcome to Hama Estate</p>
+            </div>
+          </div>
+        }>
+          <Routes>
+            {/* Mobile route - no layout, no footer */}
+            <Route path="/" element={<MobileResponsiveWrapper />} />
+            
+            {/* Mobile-specific routes */}
+            <Route path="/search" element={<MobilePropertySearch />} />
+            <Route path="/property/:id" element={<MobilePropertyDetails />} />
+            <Route path="/auth" element={<MobileAuth />} />
+            <Route path="/dashboard" element={<MobileDashboard />} />
+            
+            {/* Desktop routes WITH layout (navbar + footer) */}
+            <Route path="/desktop" element={<Layout />}>
+              <Route index element={<HomePage />} />
+              <Route path="rentakenya" element={<RentaKenyaPage />} />
+              <Route path="contact" element={<Contact />} />
+              <Route path="agents" element={<Agents />} />
+            </Route>
+            
+            {/* Legal pages WITH layout */}
+            <Route path="/privacy" element={<Layout />}>
+              <Route index element={<Privacy />} />
+            </Route>
+            <Route path="/terms" element={<Layout />}>
+              <Route index element={<Terms />} />
+            </Route>
+            <Route path="/cookies" element={<Layout />}>
+              <Route index element={<Cookies />} />
+            </Route>
+            
+            {/* Desktop routes WITHOUT layout (standalone pages) */}
+            <Route path="/desktop/properties" element={<ListPage />} />
+            <Route path="/properties" element={<ListPage />} />
+            <Route path="/properties/add" element={<AddProperty />} />
+            <Route path="/desktop/properties/add" element={<AddProperty />} />
+            <Route path="/desktop/property/:id" element={<PropertyDetails />} />
+            <Route path="/property/:id" element={<PropertyDetails />} />
+            <Route path="/desktop/login" element={<Login />} />
+            <Route path="/desktop/register" element={<Register />} />
+            <Route path="/desktop/dashboard" element={<Dashboard />} />
+            <Route path="/agent-verification" element={<AgentVerificationPage />} />
+            
+            {/* Admin routes */}
+            <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/desktop/admin" element={<AdminPanel />} />
+            
+            {/* Trial routes */}
+            <Route path="/trial-login" element={<TrialLogin />} />
+            <Route path="/trial-dashboard" element={<TrialDashboard />} />
+            <Route path="/trial-dashboard/properties" element={<PropertyManagement />} />
+            <Route path="/trial-dashboard/tenants" element={<TenantManagement />} />
+            <Route path="/trial-dashboard/rent-collection" element={<RentCollection />} />
+            <Route path="/trial-dashboard/maintenance" element={<MaintenanceManagement />} />
+            <Route path="/trial-dashboard/reports" element={<FinancialReports />} />
+            <Route path="/trial-dashboard/documents" element={<DocumentStorage />} />
+            <Route path="/trial-dashboard/payments" element={<PaymentRecording />} />
+            
+            {/* Tenant Portal routes */}
+            <Route path="/tenant-login" element={<TenantLogin />} />
+            <Route path="/tenant-dashboard" element={<TenantDashboard />} />
+            
+            {/* Catch all route - redirect to mobile home */}
+            <Route path="*" element={<MobileResponsiveWrapper />} />
+          </Routes>
+        </Suspense>
+      </Router>
     </ErrorBoundary>
   );
 }

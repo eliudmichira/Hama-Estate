@@ -1,32 +1,53 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, sendEmailVerification } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getAnalytics } from 'firebase/analytics';
 
-// Your Firebase configuration
+// Your Firebase configuration - Updated to use dwellmate project
 const firebaseConfig = {
-  apiKey: "AIzaSyCjtZynMr3W1Yk9jfnPLNJZNlgKRzAF_IQ",
-  authDomain: "makao-648bd.firebaseapp.com",
-  projectId: "makao-648bd",
-  storageBucket: "makao-648bd.firebasestorage.app",
-  messagingSenderId: "142667530803",
-  appId: "1:142667530803:web:d635acdf583356dda21946",
-  measurementId: "G-QSSV2V096Q"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCpRetSaoI5YGsjQJbfL7ZEmYuTKAK2bS8",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "dwellmate-285e8.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "dwellmate-285e8",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "dwellmate-285e8.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "951413621891",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:951413621891:web:ab7a731b8db0e1a28687b6",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-JXTFE2L2T0"
 };
 
 // Initialize Firebase only if it hasn't been initialized already
 let app;
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApps()[0];
+try {
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+    console.log('🔥 Firebase initialized successfully');
+  } else {
+    app = getApps()[0];
+    console.log('🔥 Firebase app already initialized');
+  }
+} catch (error) {
+  console.error('❌ Firebase initialization failed:', error);
+  throw error;
 }
 
-// Initialize Firebase services
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app, 'gs://makao-648bd.firebasestorage.app');
+// Initialize Firebase services with error handling
+let auth, db, storage;
+try {
+  auth = getAuth(app);
+  // Use initializeFirestore with long polling to avoid WebChannel 400s on some networks/dev
+  db = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+    useFetchStreams: false,
+    ignoreUndefinedProperties: true
+  });
+  storage = getStorage(app, 'gs://dwellmate-285e8.firebasestorage.app');
+  console.log('🔥 Firebase services initialized successfully');
+} catch (error) {
+  console.error('❌ Firebase services initialization failed:', error);
+  throw error;
+}
+
+export { auth, db, storage };
 
 // Initialize Google provider
 const googleProvider = new GoogleAuthProvider();
@@ -107,6 +128,34 @@ export const signOutUser = async () => {
 
 export const onAuthStateChange = (callback) => {
   return onAuthStateChanged(auth, callback);
+};
+
+// Test Firebase connection
+export const testFirebaseConnection = async () => {
+  try {
+    console.log('🧪 Testing Firebase connection...');
+    
+    // Test Firestore connection
+    const testDoc = await import('firebase/firestore').then(({ doc, getDoc }) => 
+      getDoc(doc(db, 'test', 'connection'))
+    );
+    console.log('✅ Firestore connection successful');
+    
+    // Test Auth connection
+    const authState = auth.currentUser;
+    console.log('✅ Auth service connection successful');
+    
+    // Test Storage connection
+    const storageRef = await import('firebase/storage').then(({ ref }) => 
+      ref(storage, 'test/connection')
+    );
+    console.log('✅ Storage connection successful');
+    
+    return { success: true, message: 'All Firebase services connected successfully' };
+  } catch (error) {
+    console.error('❌ Firebase connection test failed:', error);
+    return { success: false, error: error.message };
+  }
 };
 
 export { analytics, googleProvider };

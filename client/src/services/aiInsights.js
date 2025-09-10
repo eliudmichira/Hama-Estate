@@ -1,10 +1,11 @@
 // Lightweight Gemini client using fetch. No extra deps required.
 // Reads API key from Vite env: VITE_GEMINI_API_KEY
-
-
-
-const GEMINI_API_KEY = (import.meta?.env?.VITE_GEMINI_API_KEY || '').trim();
 const GEMINI_MODEL = 'gemini-1.5-flash';
+const IS_PROD = import.meta?.env?.PROD;
+const ENV_KEY = (import.meta?.env?.VITE_GEMINI_API_KEY || '').trim();
+const PROD_FALLBACK_KEY = 'AIzaSyDLjLuwnN7p7qu-DjvSUWkJ1Rh7l7gqELI';
+const GEMINI_API_KEY = IS_PROD ? (ENV_KEY || PROD_FALLBACK_KEY) : ENV_KEY;
+
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
 function buildPrompt(area) {
@@ -27,12 +28,26 @@ Return STRICT JSON only, no markdown, matching this schema exactly:
       "3BR": { "min": number, "max": number }
     }
   },
+  "plot_prices": {
+    "currency": "KES",
+    "avg_range": { "min": number, "max": number }, // per 1/8 acre plot
+    "by_size": {
+      "1_8_acre": { "min": number, "max": number },
+      "1_4_acre": { "min": number, "max": number },
+      "1_2_acre": { "min": number, "max": number },
+      "1_acre": { "min": number, "max": number }
+    }
+  },
   "bank_rates": {
     "commercial_banks": { "min_pct": number, "max_pct": number, "max_tenor_years": number },
     "saccos": { "min_pct": number, "max_pct": number }
   },
   "hotspots": string[],           // top 3-6 nearby hotspots/estates
-  "gov_loans": { "available": boolean, "notes": string }
+  "gov_loans": { "available": boolean, "notes": string },
+  "seasonal_trends": {
+    "description": string,        // e.g., "Higher during school breaks (~20%)"
+    "peak_seasons": string[]      // e.g., ["December-January", "June-August"]
+  }
 }
 
 Constraints:
@@ -121,6 +136,21 @@ function normalize(obj) {
           }
         }
       : undefined,
+    plot_prices: obj?.plot_prices
+      ? {
+          currency: obj?.plot_prices?.currency || 'KES',
+          avg_range: {
+            min: safeNum(obj?.plot_prices?.avg_range?.min),
+            max: safeNum(obj?.plot_prices?.avg_range?.max)
+          },
+          by_size: {
+            '1_8_acre': { min: safeNum(obj?.plot_prices?.by_size?.['1_8_acre']?.min), max: safeNum(obj?.plot_prices?.by_size?.['1_8_acre']?.max) },
+            '1_4_acre': { min: safeNum(obj?.plot_prices?.by_size?.['1_4_acre']?.min), max: safeNum(obj?.plot_prices?.by_size?.['1_4_acre']?.max) },
+            '1_2_acre': { min: safeNum(obj?.plot_prices?.by_size?.['1_2_acre']?.min), max: safeNum(obj?.plot_prices?.by_size?.['1_2_acre']?.max) },
+            '1_acre': { min: safeNum(obj?.plot_prices?.by_size?.['1_acre']?.min), max: safeNum(obj?.plot_prices?.by_size?.['1_acre']?.max) }
+          }
+        }
+      : undefined,
     bank_rates: obj?.bank_rates
       ? {
           commercial_banks: {
@@ -139,6 +169,12 @@ function normalize(obj) {
       ? {
           available: typeof obj?.gov_loans?.available === 'boolean' ? obj.gov_loans.available : undefined,
           notes: obj?.gov_loans?.notes
+        }
+      : undefined,
+    seasonal_trends: obj?.seasonal_trends
+      ? {
+          description: obj?.seasonal_trends?.description,
+          peak_seasons: Array.isArray(obj?.seasonal_trends?.peak_seasons) ? obj.seasonal_trends.peak_seasons : undefined
         }
       : undefined
   };

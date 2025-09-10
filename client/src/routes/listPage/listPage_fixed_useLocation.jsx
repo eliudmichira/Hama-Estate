@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   GoogleMap as GoogleMapComponent,
   useJsApiLoader,
@@ -30,20 +31,60 @@ import { useAuth } from '../../context/AuthContext';
 // Using real auth context
 
 // const useNavigate = () => (path, options) => {};
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import EnhancedMobileMapNavigation from '../../components/EnhancedMobileMapNavigation';
+import EnhancedPropertyCard from '../../components/enhanced/PropertyCard';
+import SmartSearchBar from '../../components/enhanced/SmartSearchBar';
+import AdvancedFiltersSidebar from '../../components/enhanced/AdvancedFiltersSidebar';
 
-// Google Maps API Key - fallback to provided key if env is missing
-const GOOGLE_MAPS_API_KEY = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '').trim();
-const HAS_GOOGLE_MAPS_KEY = Boolean(GOOGLE_MAPS_API_KEY);
+// AI Status Component
+const AIStatusBar = ({ propertyCount, searchQuery, isAIShowingProperties }) => {
+  if (propertyCount === 0) return null;
+
+  return (
+    <motion.button
+      className="fixed left-4 bottom-4 z-30 px-4 py-2 rounded-full shadow-lg bg-white/90 dark:bg-gray-800/90 border border-gray-200/60 dark:border-gray-700/60 backdrop-blur flex items-center gap-2 hover:shadow-xl transition-all"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ scale: 1.03 }}
+      title={searchQuery ? `Results for "${searchQuery}"` : 'Properties found'}
+      onClick={(e) => { e.stopPropagation(); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }}
+   >
+      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${isAIShowingProperties ? 'bg-gradient-to-r from-[#51faaa] to-[#dbd5a4]' : 'bg-gray-100 dark:bg-gray-700'}` }>
+        <Sparkles className={`w-3 h-3 ${isAIShowingProperties ? 'text-[#0a0c19]' : 'text-gray-600 dark:text-gray-300'}`} />
+              </div>
+      <span className="text-sm font-semibold text-gray-900 dark:text-white">
+        {propertyCount.toLocaleString()} properties
+      </span>
+                {searchQuery && (
+        <span className="hidden sm:inline text-xs text-gray-600 dark:text-gray-400">• "{searchQuery}"</span>
+      )}
+    </motion.button>
+  );
+};
+import { 
+  PropertyGridSkeleton, 
+  MapSkeleton, 
+  SearchBarSkeleton,
+  PropertyLoadingSpinner 
+} from '../../components/enhanced/PropertyLoadingStates';
+
+// Google Maps API Key - strict in dev, safe fallback in prod
+const IS_PROD = import.meta.env.PROD;
+const ENV_KEY = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '').trim();
+const PROD_FALLBACK_KEY = 'AIzaSyDp7njSUcFCR5IcHJHcLTPV1COSLGfgU_U';
+const GOOGLE_MAPS_API_KEY = IS_PROD ? (ENV_KEY || PROD_FALLBACK_KEY) : ENV_KEY;
+const HAS_GOOGLE_MAPS_KEY = GOOGLE_MAPS_API_KEY.length > 0;
 
 // Keep libraries array stable to avoid unnecessary reloads
 const MAP_LIBRARIES = ['places', 'drawing'];
 
-// Debug: Log the API key to see what's being loaded
-console.log('Environment variable VITE_GOOGLE_MAPS_API_KEY:', import.meta.env.VITE_GOOGLE_MAPS_API_KEY);
-console.log('GOOGLE_MAPS_API_KEY being used:', HAS_GOOGLE_MAPS_KEY ? '[set]' : '[missing]');
-console.log('HAS_GOOGLE_MAPS_KEY:', HAS_GOOGLE_MAPS_KEY);
+// Debug: Log the API key state
+if (!HAS_GOOGLE_MAPS_KEY) {
+  console.error('[Maps] VITE_GOOGLE_MAPS_API_KEY is missing. In dev, add it to client/.env.local then restart (npm run dev).');
+}
+console.log('Maps key present:', HAS_GOOGLE_MAPS_KEY, 'env mode:', IS_PROD ? 'prod' : 'dev');
+console.log('All env vars (filtered):', Object.keys(import.meta.env || {}));
 
 // Default map center (Nairobi, Kenya)
 const DEFAULT_CENTER = { lat: -1.2921, lng: 36.8219 };
@@ -144,10 +185,8 @@ const mapThemes = {
   ]
 };
 
-// Enhanced Quick View Modal
+// Compact Quick View Modal
 function QuickViewModal({ property, isOpen, onClose, onFavoriteToggle, isFavorite }) {
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState('overview');
   const [contactForm, setContactForm] = useState({
     name: '',
     email: '',
@@ -155,7 +194,6 @@ function QuickViewModal({ property, isOpen, onClose, onFavoriteToggle, isFavorit
     message: 'I am interested in this property. Please contact me.'
   });
   const navigate = useNavigate();
-
 
   useEffect(() => {
     if (isOpen) {
@@ -171,6 +209,7 @@ function QuickViewModal({ property, isOpen, onClose, onFavoriteToggle, isFavorit
   if (!isOpen || !property) return null;
 
   const formatPrice = (price) => {
+    if (!price) return 'Price on request';
     return new Intl.NumberFormat('en-KE', {
       style: 'currency',
       currency: 'KES',
@@ -197,321 +236,151 @@ function QuickViewModal({ property, isOpen, onClose, onFavoriteToggle, isFavorit
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20">
+      <div className="flex items-center justify-center min-h-screen px-4 py-8">
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
           onClick={onClose}
         />
 
-        <div className="relative bg-white dark:bg-gray-800 rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:max-w-6xl sm:w-full animate-modal-slide-up max-h-[90vh] overflow-y-auto">
-          {/* Image Gallery */}
-          <div className="relative h-96 lg:h-[500px] overflow-hidden group">
+        <div className="relative bg-white dark:bg-gray-800 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:max-w-4xl sm:w-full animate-modal-slide-up max-h-[85vh] overflow-hidden">
+          {/* Compact Header with Image and Basic Info */}
+          <div className="relative h-48 overflow-hidden">
             <img
-              src={property.images[currentImageIndex]}
+              src={property.images?.[0] || '/placeholder-property.jpg'}
               alt={property.title}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              className="w-full h-full object-cover"
             />
             
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
             
-            {property.images.length > 1 && (
-              <>
-                <button
-                  onClick={() => setCurrentImageIndex((prev) => (prev - 1 + property.images.length) % property.images.length)}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/30 transition-all duration-300"
-                >
-                  <ChevronLeft className="h-6 w-6 text-white" />
-                </button>
-                <button
-                  onClick={() => setCurrentImageIndex((prev) => (prev + 1) % property.images.length)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/30 transition-all duration-300"
-                >
-                  <ChevronRight className="h-6 w-6 text-white" />
-                </button>
-              </>
-            )}
-
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-              {property.images.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentImageIndex(index)}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    index === currentImageIndex ? 'w-8 bg-white' : 'bg-white/50 hover:bg-white/70'
-                  }`}
-                />
-              ))}
+            <div className="absolute top-4 right-4 flex gap-2">
+              <button
+                onClick={() => onFavoriteToggle(property)}
+                className={`w-8 h-8 rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-300 ${
+                  isFavorite 
+                    ? 'bg-red-500 text-white' 
+                    : 'bg-white/20 text-white hover:bg-red-500'
+                }`}
+              >
+                <Heart className="h-4 w-4" fill={isFavorite ? 'currentColor' : 'none'} />
+              </button>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
-            <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
-              <div className="flex gap-2">
-                {/* Removed unwanted badges: Virtual Tour, Open House, Price Reduced */}
-              </div>
-              
-              <div className="flex gap-2">
-                <button
-                  onClick={() => onFavoriteToggle(property)}
-                  className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-300 ${
-                    isFavorite 
-                      ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' 
-                      : 'bg-white/20 text-white hover:bg-red-500 hover:shadow-lg hover:shadow-red-500/30'
-                  }`}
-                >
-                  <Heart className="h-5 w-5" fill={isFavorite ? 'currentColor' : 'none'} />
-                </button>
-                <button
-                  onClick={onClose}
-                  className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
-              <h2 className="text-4xl font-bold mb-2">{formatPrice(property.price)}</h2>
-              <p className="text-xl opacity-90 flex items-center gap-2">
-                <MapPin className="w-5 h-5" />
-                {property.address}
+            <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+              <h2 className="text-2xl font-bold mb-1">{property.title}</h2>
+              <p className="text-lg font-semibold mb-1">{formatPrice(property.price)}</p>
+              <p className="text-sm opacity-90 flex items-center gap-1">
+                <MapPin className="w-4 h-4" />
+                {property.address || property.location?.address || 'Location not specified'}
               </p>
             </div>
           </div>
 
-          {/* Content Tabs */}
-          <div className="border-b border-gray-200 dark:border-gray-700">
-            <div className="flex gap-1 p-2">
-              {[
-                { id: 'overview', label: 'Overview', icon: Home },
-                { id: 'features', label: 'Features', icon: Star },
-                { id: 'location', label: 'Location', icon: MapPin },
-                { id: 'contact', label: 'Contact', icon: MessageCircle }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 ${
-                    activeTab === tab.id
-                      ? 'bg-[#51faaa] text-[#0a0c19] shadow-lg shadow-[#51faaa]/20'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <tab.icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
-              ))}
+          {/* Compact Content - No Tabs */}
+          <div className="flex-1 overflow-y-auto">
+
+            {/* Compact Property Details */}
+            <div className="p-6 space-y-6">
+              {/* Property Stats */}
+              <div className="grid grid-cols-4 gap-3">
+                <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <Bed className="h-5 w-5 mx-auto mb-1 text-[#51faaa]" />
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Bedrooms</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">{property?.bedrooms || 'N/A'}</p>
+                </div>
+                <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <Bath className="h-5 w-5 mx-auto mb-1 text-[#51faaa]" />
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Bathrooms</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">{property?.bathrooms || 'N/A'}</p>
+                </div>
+                <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <Square className="h-5 w-5 mx-auto mb-1 text-[#51faaa]" />
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Area</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">{property?.area ? `${property.area}m²` : 'N/A'}</p>
+                </div>
+                <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <Home className="h-5 w-5 mx-auto mb-1 text-[#51faaa]" />
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Type</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">{property?.property_type || 'N/A'}</p>
+                </div>
+              </div>
+
+              {/* Property Description */}
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Description</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                  {property?.description || 
+                    `This ${property?.property_type?.toLowerCase() || 'property'} features ${property?.bedrooms || 'N/A'} bedrooms and ${property?.bathrooms || 'N/A'} bathrooms. ${property?.area ? `With ${property.area}m² of living space, ` : ''}this property offers modern amenities and thoughtful design.`
+                  }
+                </p>
+              </div>
+
+              {/* Contact Form */}
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">Contact Agent</h3>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input
+                      type="text"
+                      placeholder="Full Name"
+                      value={contactForm.name}
+                      onChange={(e) => setContactForm({...contactForm, name: e.target.value})}
+                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-[#51faaa] focus:border-transparent"
+                    />
+                    <input
+                      type="email"
+                      placeholder="Email Address"
+                      value={contactForm.email}
+                      onChange={(e) => setContactForm({...contactForm, email: e.target.value})}
+                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-[#51faaa] focus:border-transparent"
+                    />
+                  </div>
+                  <input
+                    type="tel"
+                    placeholder="Phone Number"
+                    value={contactForm.phone}
+                    onChange={(e) => setContactForm({...contactForm, phone: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-[#51faaa] focus:border-transparent"
+                  />
+                  <textarea
+                    placeholder="I am interested in this property. Please contact me."
+                    value={contactForm.message}
+                    onChange={(e) => setContactForm({...contactForm, message: e.target.value})}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-[#51faaa] focus:border-transparent resize-none"
+                  />
+                  <button
+                    onClick={handleContactSubmit}
+                    className="w-full px-4 py-2 bg-[#51faaa] text-[#0a0c19] font-semibold rounded-lg hover:bg-[#45e695] transition-colors text-sm"
+                  >
+                    Send Message
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-
-          {/* Tab Content */}
-          <div className="p-8">
-            {activeTab === 'overview' && (
-              <div className="space-y-8 animate-fade-in">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-gradient-to-br from-[#51faaa]/20 to-[#51faaa]/30 dark:from-[#51faaa]/20 dark:to-[#51faaa]/30 rounded-2xl p-4 text-center hover:shadow-lg transition-all duration-300">
-                    <Bed className="h-8 w-8 mx-auto mb-2 text-[#51faaa] dark:text-[#51faaa]" />
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Bedrooms</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{property?.bedrooms}</p>
-                  </div>
-                  <div className="bg-gradient-to-br from-[#dbd5a4]/20 to-[#dbd5a4]/30 dark:from-[#dbd5a4]/20 dark:to-[#dbd5a4]/30 rounded-2xl p-4 text-center hover:shadow-lg transition-all duration-300">
-                    <Bath className="h-8 w-8 mx-auto mb-2 text-[#dbd5a4] dark:text-[#dbd5a4]" />
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Bathrooms</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{property?.bathrooms}</p>
-                  </div>
-                  <div className="bg-gradient-to-br from-[#51faaa]/20 to-[#dbd5a4]/30 dark:from-[#51faaa]/20 dark:to-[#dbd5a4]/30 rounded-2xl p-4 text-center hover:shadow-lg transition-all duration-300">
-                    <Square className="h-8 w-8 mx-auto mb-2 text-[#51faaa] dark:text-[#51faaa]" />
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Square Feet</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{property.area?. toLocaleString()}</p>
-                  </div>
-                  <div className="bg-gradient-to-br from-[#dbd5a4]/20 to-[#51faaa]/30 dark:from-[#dbd5a4]/20 dark:to-[#51faaa]/30 rounded-2xl p-4 text-center hover:shadow-lg transition-all duration-300">
-                    <Home className="h-8 w-8 mx-auto mb-2 text-[#dbd5a4] dark:text-[#dbd5a4]" />
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Type</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{property?.property_type}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">About this home</h3>
-                  <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-                    This beautiful {property?.property_type?.toLowerCase()} features {property.bedrooms} bedrooms and {property.bathrooms} bathrooms 
-                    across {property?.area?.toLocaleString()} square feet of living space. Built in {property.year_built}, this property 
-                    offers modern amenities and thoughtful design throughout.
-                  </p>
-                </div>
-              </div>
-            )}
-
-
-            {/* features */}
-
-            {activeTab === 'features' && (
-              <div className="space-y-6 animate-fade-in">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Features & Amenities</h3>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {property.features.map((feature, index) => {
-                    const getFeatureIcon = (feature) => {
-                      if (feature.includes('Kitchen')) return ChefHat;
-                      if (feature.includes('Floor')) return Home;
-                      if (feature.includes('Air')) return AirVent;
-                      if (feature.includes('Fireplace')) return Flame;
-                      if (feature.includes('Smart')) return Zap;
-                      if (feature.includes('Energy')) return TreePine;
-                      if (feature.includes('Pool')) return Droplets;
-                      return Check;
-                    };
-                    const IconComponent = getFeatureIcon(feature);
-                    
-                    return (
-                      <div 
-                        key={index} 
-                        className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-300"
-                      >
-                        <div className="w-10 h-10 bg-[#51faaa]/20 dark:bg-[#51faaa]/20 rounded-lg flex items-center justify-center">
-                          <IconComponent className="w-5 h-5 text-[#51faaa] dark:text-[#51faaa]" />
-                        </div>
-                        <span className="text-gray-700 dark:text-gray-300 font-medium">{feature}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'location' && (
-              <div className="space-y-6 animate-fade-in">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Location & Neighborhood</h3>
-                
-                <div className="bg-gradient-to-r from-[#51faaa]/10 to-[#dbd5a4]/10 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-6">
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{property?.neighborhood.name}</h4>
-                  <p className="text-gray-600 dark:text-gray-300 mb-4">
-                    Located in the desirable {property?.neighborhood.name} area of {property?.city}, this property offers excellent 
-                    access to schools, shopping, dining, and transportation.
-                  </p>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <School className="w-4 h-4 text-[#51faaa]" />
-                      <span>Great Schools Nearby</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Car className="w-4 h-4 text-[#51faaa]" />
-                      <span>Easy Highway Access</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Coffee className="w-4 h-4 text-[#dbd5a4]" />
-                      <span>Restaurants & Shopping</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Trees className="w-4 h-4 text-[#51faaa]" />
-                      <span>Parks & Recreation</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'contact' && (
-              <div className="space-y-6 animate-fade-in">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Contact Agent</h3>
-                
-                <div className="grid md:grid-cols-2 gap-8">
-                  <div className="bg-gradient-to-br from-[#51faaa]/10 to-[#dbd5a4]/10 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-6">
-                    <div className="flex items-center gap-4 mb-6">
-                      <img
-                        src={property.listing_agent.photo}
-                        alt={property.listing_agent.name}
-                        className="w-16 h-16 rounded-full object-cover"
-                      />
-                      <div>
-                        <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                          {property.listing_agent.name}
-                        </h4>
-                        <p className="text-gray-600 dark:text-gray-400">{property.agent.name}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <a
-                        href={`tel:${property.listing_agent.phone}`}
-                        className="flex items-center gap-3 p-3 bg-white/50 dark:bg-gray-800/50 rounded-xl hover:bg-white/70 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <Phone className="w-5 h-5 text-[#51faaa]" />
-                        <span className="font-medium">{property.listing_agent.phone}</span>
-                      </a>
-                      <a
-                        href={`mailto:${property.listing_agent.email}`}
-                        className="flex items-center gap-3 p-3 bg-white/50 dark:bg-gray-800/50 rounded-xl hover:bg-white/70 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <Mail className="w-5 h-5 text-[#51faaa]" />
-                        <span className="font-medium">{property.listing_agent.email}</span>
-                      </a>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <div className="space-y-4">
-                      <input
-                        type="text"
-                        placeholder="Full Name"
-                        value={contactForm.name}
-                        onChange={(e) => setContactForm(prev => ({...prev, name: e.target.value}))}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-[#51faaa] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      />
-                      <input
-                        type="email"
-                        placeholder="Email Address"
-                        value={contactForm.email}
-                        onChange={(e) => setContactForm(prev => ({...prev, email: e.target.value}))}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-[#51faaa] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      />
-                      <input
-                        type="tel"
-                        placeholder="Phone Number"
-                        value={contactForm.phone}
-                        onChange={(e) => setContactForm(prev => ({...prev, phone: e.target.value}))}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-[#51faaa] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      />
-                      <textarea
-                        rows={4}
-                        placeholder="Message"
-                        value={contactForm.message}
-                        onChange={(e) => setContactForm(prev => ({...prev, message: e.target.value}))}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-[#51faaa] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      />
-                      <button
-                        onClick={handleContactSubmit}
-                        className="w-full bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#0a0c19] font-semibold py-3 px-6 rounded-xl hover:shadow-lg hover:shadow-[#51faaa]/25 transition-all duration-300"
-                      >
-                        Send Message
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Footer Actions */}
-          <div className="bg-gray-50 dark:bg-gray-700 px-8 py-6 flex flex-col sm:flex-row gap-4 justify-between">
-            <div className="flex gap-3">
-              <button
-                onClick={() => navigate(`/property/${property.id}`)}
-                className="px-6 py-3 bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#0a0c19] font-semibold rounded-xl hover:shadow-lg hover:shadow-[#51faaa]/25 transition-all duration-300 flex items-center gap-2 group"
-              >
-                View Full Details
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </button>
-              <button className="px-6 py-3 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold rounded-xl hover:border-[#51faaa] hover:text-[#51faaa] dark:hover:text-[#51faaa] transition-all duration-300 flex items-center gap-2">
-                <MessageCircle className="w-4 h-4" />
-                Contact Agent
-              </button>
-            </div>
-            <div className="flex gap-3">
-              <button className="w-12 h-12 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl flex items-center justify-center hover:border-[#51faaa] hover:text-[#51faaa] transition-all duration-300">
-                <Share2 className="w-5 h-5" />
-              </button>
-              <button className="w-12 h-12 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl flex items-center justify-center hover:border-[#51faaa] hover:text-[#51faaa] transition-all duration-300">
-                <Bookmark className="w-5 h-5" />
-              </button>
-            </div>
+          <div className="bg-gray-50 dark:bg-gray-700 px-6 py-4 flex flex-col sm:flex-row gap-3 justify-between">
+            <button
+              onClick={() => navigate(`/property/${property.id}`)}
+              className="px-6 py-2 bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#0a0c19] font-semibold rounded-lg hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
+            >
+              View Full Details
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onClose}
+              className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+            >
+              Close
+            </button>
           </div>
         </div>
       </div>
@@ -525,6 +394,7 @@ function MarketInsights({ location, propertyCount, searchQuery }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [insights, setInsights] = useState(null);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -549,23 +419,33 @@ function MarketInsights({ location, propertyCount, searchQuery }) {
 
   const rent = insights?.rent;
   const bank = insights?.bank_rates;
+  const plotPrices = insights?.plot_prices;
+  const seasonalTrends = insights?.seasonal_trends;
 
   return (
-    <div className={`rounded-2xl p-6 mb-6 border backdrop-blur-xl transition-colors duration-500 ${
-      isDark 
+    <div className={`rounded-xl p-2 md:p-2.5 mb-2 border backdrop-blur-xl transition-colors duration-500 ${
+      isDark
         ? 'bg-gradient-to-br from-[#0a0c19] via-[#10121e] to-[#0a0c19] border-[#51faaa]/20' 
         : 'bg-gradient-to-br from-gray-50 via-white to-gray-50 border-gray-200'
     }`}>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className={`text-xl font-bold flex items-center gap-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          <div className="w-10 h-10 bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] rounded-xl flex items-center justify-center shadow-lg shadow-[#51faaa]/20">
-            <TrendingUp className="h-5 w-5 text-[#0a0c19]" />
+      <div className="flex items-center justify-between mb-1 md:mb-1.5">
+        <h3 className={`text-sm md:text-base font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          <div className="w-7 h-7 md:w-8 md:h-8 bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] rounded-lg flex items-center justify-center shadow-lg shadow-[#51faaa]/20">
+            <TrendingUp className="h-3.5 w-3.5 md:h-4 md:w-4 text-[#0a0c19]" />
           </div>
           {location} Market Insights
         </h3>
+        <div className="flex items-center gap-2">
         <div className="text-right">
-          <h4 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{searchQuery || 'Nairobi'} Real Estate</h4>
-          <p className={`${isDark ? 'text-white/60' : 'text-gray-600'}`}>{propertyCount} homes available</p>
+            <h4 className={`text-xs md:text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{searchQuery || 'Nairobi'} Real Estate</h4>
+            <p className={`text-[10px] md:text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>{propertyCount} homes available</p>
+          </div>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="px-2 py-1 text-[10px] md:text-xs rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
+          >
+            {expanded ? 'Hide' : 'Details'}
+          </button>
         </div>
       </div>
 
@@ -575,25 +455,25 @@ function MarketInsights({ location, propertyCount, searchQuery }) {
 
       {!loading && insights && (
         <>
-          {insights.summary && (
-            <p className={`mb-4 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>{insights.summary}</p>
+          {expanded && insights.summary && (
+            <p className={`mb-2 md:mb-3 text-[12px] md:text-[13px] leading-relaxed ${isDark ? 'text-white/80' : 'text-gray-700'}`}>{insights.summary}</p>
           )}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <div className={`backdrop-blur-sm rounded-lg p-2.5 hover:shadow-md transition-all duration-300 border ${
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 md:gap-1.5">
+            <div className={`backdrop-blur-sm rounded-lg p-2.5 md:p-3 hover:shadow-md transition-all duration-300 border ${
               isDark ? 'bg-[#10121e]/80 border-[#51faaa]/10' : 'bg-white/80 border-gray-200'
             }`}>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Home className="w-3.5 h-3.5 text-[#51faaa]" />
-                <p className={`text-xs font-medium ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>Average Rent</p>
+              <div className="flex items-center gap-1 mb-1">
+                <Home className="w-3 h-3 md:w-3.5 md:h-3.5 text-[#51faaa]" />
+                <p className={`text-[10px] md:text-[11px] font-medium ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>Average Rent</p>
               </div>
               {rent?.avg_range?.min != null && rent?.avg_range?.max != null ? (
-                <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                <p className={`text-[12px] md:text-[13px] font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {formatKes(rent?.avg_range?.min)} - {formatKes(rent?.avg_range?.max)}
                 </p>
               ) : (
-                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>—</p>
+                <p className={`text-[12px] md:text-[13px] ${isDark ? 'text-white/60' : 'text-gray-500'}`}>—</p>
               )}
-              <div className={`text-xs mt-1 ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>
+              <div className={`text-[10px] md:text-[11px] mt-1 ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>
                 {rent?.by_type?.['1BR']?.min != null && rent?.by_type?.['1BR']?.max != null ? (
                   <>1BR: {formatKes(rent?.by_type?.['1BR']?.min)} - {formatKes(rent?.by_type?.['1BR']?.max)}<br /></>
                 ) : null}
@@ -606,32 +486,32 @@ function MarketInsights({ location, propertyCount, searchQuery }) {
               </div>
             </div>
 
-            <div className={`backdrop-blur-sm rounded-lg p-2.5 hover:shadow-md transition-all duration-300 border ${
+            <div className={`backdrop-blur-sm rounded-lg p-2.5 md:p-3 hover:shadow-md transition-all duration-300 border ${
               isDark ? 'bg-[#10121e]/80 border-[#51faaa]/10' : 'bg-white/80 border-gray-200'
             }`}>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <DollarSign className="w-3.5 h-3.5 text-[#51faaa]" />
-                <p className={`text-xs font-medium ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>Bank Rates</p>
+              <div className="flex items-center gap-1 mb-1">
+                <DollarSign className="w-3 h-3 md:w-3.5 md:h-3.5 text-[#51faaa]" />
+                <p className={`text-[10px] md:text-[11px] font-medium ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>Plot Prices</p>
               </div>
-              {bank?.commercial_banks?.min_pct != null && bank?.commercial_banks?.max_pct != null ? (
-                <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {bank?.commercial_banks?.min_pct}% - {bank?.commercial_banks?.max_pct}%
+              {plotPrices?.avg_range?.min != null && plotPrices?.avg_range?.max != null ? (
+                <p className={`text-[12px] md:text-[13px] font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {formatKes(plotPrices.avg_range.min)} - {formatKes(plotPrices.avg_range.max)}
                 </p>
               ) : (
-                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>—</p>
+                <p className={`text-[12px] md:text-[13px] ${isDark ? 'text-white/60' : 'text-gray-500'}`}>—</p>
               )}
-              {bank?.commercial_banks?.max_tenor_years != null && (
-                <p className={`text-xs ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>Tenor: up to {bank?.commercial_banks?.max_tenor_years} years</p>
-              )}
-              {bank?.saccos?.min_pct != null && bank?.saccos?.max_pct != null && (
-                <p className={`text-xs mt-1 ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>SACCOs: {bank?.saccos?.min_pct}% - {bank?.saccos?.max_pct}%</p>
+              <p className={`text-[10px] md:text-[11px] ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>(1/8 acre)</p>
+              {expanded && seasonalTrends?.description && (
+                <p className={`text-[10px] md:text-[11px] mt-1 ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>
+                  {seasonalTrends.description}
+                </p>
               )}
             </div>
 
-            <div className={`backdrop-blur-sm rounded-lg p-2.5 hover:shadow-md transition-all duration-300 border ${
+            <div className={`backdrop-blur-sm rounded-lg p-3 hover:shadow-md transition-all duration-300 border ${
               isDark ? 'bg-[#10121e]/80 border-[#51faaa]/10' : 'bg-white/80 border-gray-200'
             }`}>
-              <div className="flex items-center gap-1.5 mb-1.5">
+              <div className="flex items-center gap-1 mb-1">
                 <MapPin className="w-3.5 h-3.5 text-[#51faaa]" />
                 <p className={`text-xs font-medium ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>Hotspot Areas</p>
               </div>
@@ -643,28 +523,7 @@ function MarketInsights({ location, propertyCount, searchQuery }) {
               ) : null}
             </div>
 
-            <div className={`backdrop-blur-sm rounded-lg p-2.5 hover:shadow-md transition-all duration-300 border ${
-              isDark ? 'bg-[#10121e]/80 border-[#51faaa]/10' : 'bg-white/80 border-gray-200'
-            }`}>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Info className="w-3.5 h-3.5 text-[#51faaa]" />
-                <p className={`text-xs font-medium ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>Gov. Loans</p>
-              </div>
-              {typeof insights?.gov_loans?.available === 'boolean' ? (
-                <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {insights.gov_loans.available ? 'Available' : 'Not Available'}
-                </p>
-              ) : (
-                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>—</p>
-              )}
-              {insights?.gov_loans?.notes && (
-                <p className={`text-xs ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>
-                  {insights.gov_loans.notes.length > 50 
-                    ? insights.gov_loans.notes.substring(0, 50) + '...' 
-                    : insights.gov_loans.notes}
-                </p>
-              )}
-            </div>
+            {/* Market Trends card removed to create more space */}
           </div>
         </>
       )}
@@ -845,16 +704,36 @@ function EnhancedSearchBar({ searchQuery, setSearchQuery, propertyCount, filters
   };
 
   return (
-    <div className="w-full">
-      <div className={`relative bg-white dark:bg-gray-800 rounded-full shadow-lg border-2 transition-all duration-300 ${
-        isFocused ? 'border-[#51faaa] shadow-xl shadow-[#51faaa]/20' : 'border-gray-200 dark:border-gray-700'
-      }`}>
+    <motion.div 
+      className="w-full"
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.3 }}
+    >
+      <motion.div 
+        className={`relative bg-white/95 dark:bg-gray-800/95 rounded-full shadow-lg border-2 backdrop-blur-sm transition-all duration-300 ${
+          isFocused ? 'border-[#51faaa] shadow-xl shadow-[#51faaa]/20' : 'border-gray-200 dark:border-gray-700'
+        }`}
+        animate={{
+          scale: isFocused ? 1.02 : 1,
+          y: isFocused ? -2 : 0
+        }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      >
         <div className="flex items-center p-2">
           <div className="flex-1 flex items-center">
-            <Search className={`w-4 h-4 ml-3 transition-colors ${
-              isFocused ? 'text-[#51faaa]' : 'text-gray-400'
-            }`} />
-            <input
+            <motion.div
+              animate={{
+                scale: isFocused ? 1.1 : 1,
+                rotate: isFocused ? 5 : 0
+              }}
+              transition={{ duration: 0.2 }}
+            >
+              <Search className={`w-4 h-4 ml-3 transition-colors ${
+                isFocused ? 'text-[#51faaa]' : 'text-gray-400'
+              }`} />
+            </motion.div>
+            <motion.input
               type="text"
               placeholder="Search by location, address, or ZIP"
               value={searchQuery}
@@ -862,18 +741,25 @@ function EnhancedSearchBar({ searchQuery, setSearchQuery, propertyCount, filters
               onFocus={() => setIsFocused(true)}
               onBlur={() => setTimeout(() => setIsFocused(false), 200)}
               className="flex-1 px-3 py-2 text-sm bg-transparent border-none focus:outline-none placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white"
+              animate={{
+                x: isFocused ? 2 : 0
+              }}
+              transition={{ duration: 0.2 }}
             />
             {searchQuery && (
-              <button
+              <motion.button
                 onClick={() => {
                   setSearchQuery('');
                   setShowSuggestions(false);
                 }}
                 className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                 title="Clear search"
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                transition={{ duration: 0.2 }}
               >
                 <X className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
-              </button>
+              </motion.button>
             )}
           </div>
           
@@ -914,29 +800,48 @@ function EnhancedSearchBar({ searchQuery, setSearchQuery, propertyCount, filters
           </div>
         </div>
 
-        {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
-            <div className="p-2">
-              {suggestions.map((suggestion, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    setSearchQuery(suggestion);
-                    setShowSuggestions(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left group"
-                >
-                  <div className="w-8 h-8 bg-[#51faaa]/20 dark:bg-[#51faaa]/20 rounded-lg flex items-center justify-center group-hover:bg-[#51faaa] transition-colors">
-                    <MapPin className="w-4 h-4 text-[#51faaa] dark:text-[#51faaa] group-hover:text-[#0a0c19]" />
-                  </div>
-                  <span className="text-gray-700 dark:text-gray-200 font-medium">{suggestion}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+        <AnimatePresence>
+          {showSuggestions && suggestions.length > 0 && (
+            <motion.div 
+              className="absolute top-full left-0 right-0 mt-2 bg-white/95 dark:bg-gray-800/95 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50 backdrop-blur-xl"
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              <div className="p-2">
+                {suggestions.map((suggestion, index) => (
+                  <motion.button
+                    key={index}
+                    onClick={() => {
+                      setSearchQuery(suggestion);
+                      setShowSuggestions(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left group"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2, delay: index * 0.05 }}
+                    whileHover={{ 
+                      x: 4,
+                      transition: { duration: 0.2 }
+                    }}
+                  >
+                    <motion.div 
+                      className="w-8 h-8 bg-[#51faaa]/20 dark:bg-[#51faaa]/20 rounded-lg flex items-center justify-center group-hover:bg-[#51faaa] transition-colors"
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <MapPin className="w-4 h-4 text-[#51faaa] dark:text-[#51faaa] group-hover:text-[#0a0c19]" />
+                    </motion.div>
+                    <span className="text-gray-700 dark:text-gray-200 font-medium">{suggestion}</span>
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -959,14 +864,42 @@ function PropertyCard({ property, isHighlighted, onMouseEnter, onMouseLeave, onM
     }).format(price);
   };
 
+  const getAddressString = (prop) => {
+    // Prefer simple string
+    if (typeof prop?.address === 'string') return prop.address;
+    // Address object shape { address, city, state, zipCode, coordinates }
+    if (prop?.address && typeof prop.address === 'object') {
+      const { address, city, state, zipCode } = prop.address;
+      const parts = [address, city, state, zipCode].filter(Boolean);
+      if (parts.length) return parts.join(', ');
+    }
+    // Some data use location object
+    if (prop?.location && typeof prop.location === 'object') {
+      const { address, city, state, zipCode } = prop.location;
+      const parts = [address, city, state, zipCode].filter(Boolean);
+      if (parts.length) return parts.join(', ');
+    }
+    // Fallbacks
+    if (typeof prop?.location === 'string') return prop.location;
+    return '';
+  };
+
   return (
-    <div 
+    <motion.div 
       ref={cardRef}
-      className={`group bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden transition-all duration-500 cursor-pointer ${
+      className={`group bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden transition-all duration-500 cursor-pointer relative ${
         isHighlighted 
           ? 'ring-2 ring-blue-500 shadow-2xl shadow-blue-500/20 scale-[1.02]' 
           : 'hover:shadow-2xl hover:scale-[1.01]'
       } ${viewMode === 'grid' ? 'flex flex-col' : 'flex flex-row'}`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      whileHover={{ 
+        y: -8,
+        transition: { duration: 0.3, ease: "easeOut" }
+      }}
+      whileTap={{ scale: 0.98 }}
       onMouseEnter={() => {
         onMouseEnter && onMouseEnter(property.id);
         onMarkerHover && onMarkerHover(property.id);
@@ -987,10 +920,18 @@ function PropertyCard({ property, isHighlighted, onMouseEnter, onMouseLeave, onM
           <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
         )}
         <img 
-          src={property.images[currentImageIndex]}
+          src={(() => {
+            const images = property.images || [];
+            if (images.length === 0) return 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop';
+            const transformedUrl = images[currentImageIndex];
+            return transformedUrl?.replace('makao-648bd.firebasestorage.app', 'dwellmate-285e8.firebasestorage.app') || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop';
+          })()}
           alt={property.title}
           className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110"
           onLoad={() => setIsImageLoading(false)}
+          onError={(e) => {
+            e.target.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop';
+          }}
           style={{ opacity: isImageLoading ? 0 : 1 }}
         />
         
@@ -1016,7 +957,7 @@ function PropertyCard({ property, isHighlighted, onMouseEnter, onMouseLeave, onM
             onClick={(e) => {
               e.stopPropagation();
               if (!currentUser) {
-                navigate('/login', { state: { from: location } });
+                navigate('/desktop/login', { state: { from: location } });
                 return;
               }
               setIsSaved(!isSaved);
@@ -1081,20 +1022,26 @@ function PropertyCard({ property, isHighlighted, onMouseEnter, onMouseLeave, onM
           </span>
         </div>
         
-        <p className={`text-gray-700 dark:text-gray-300 font-medium ${viewMode === 'grid' ? 'mb-3' : 'mb-2'}`}>{property.address}</p>
+        <p className={`text-gray-700 dark:text-gray-300 font-medium ${viewMode === 'grid' ? 'mb-3' : 'mb-2'}`}>{getAddressString(property)}</p>
         
         <div className={`flex items-center justify-between ${viewMode === 'grid' ? 'pt-3 border-t border-gray-100 dark:border-gray-700' : ''}`}>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Listed by {property.agent.name}
-          </p>
-          {property.days_on_market <= 7 && (
-            <span className="px-2.5 py-1 bg-[#51faaa]/20 dark:bg-[#51faaa]/20 text-[#51faaa] dark:text-[#51faaa] rounded-full text-xs font-semibold">
-              {property.days_on_market}d ago
-            </span>
-          )}
+          <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 text-sm">
+            <Eye className="w-3 h-3" />
+            <span>{property.views || Math.floor(Math.random() * 50) + 1} views</span>
+          </div>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/property/${property.id}`, {state: {property}});
+            }}
+            className="text-[#51faaa] dark:text-[#51faaa] font-medium text-sm hover:text-[#51faaa]/80 dark:hover:text-[#51faaa]/80 transition-colors flex items-center gap-1"
+          >
+            View Details
+            <ChevronRight className="w-3 h-3" />
+          </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -1228,7 +1175,7 @@ function EnhancedMap({ propertyData, highlightedProperty, onMarkerHover, onPrope
   }, [propertyData]);
 
   return (
-    <div className="relative h-full bg-gray-100 dark:bg-gray-900 rounded-2xl overflow-hidden">
+    <div className="relative flex-1 min-w-0 h-[calc(100vh-96px)] bg-gray-100 dark:bg-gray-900 rounded-2xl overflow-hidden">
       {/* API Key Warning */}
       {!HAS_GOOGLE_MAPS_KEY && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-lg">
@@ -1472,8 +1419,8 @@ function EnhancedMap({ propertyData, highlightedProperty, onMarkerHover, onPrope
         </div>
       </div>
 
-      {/* Map Style Selector */}
-      <div className="absolute top-4 right-4 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-2">
+      {/* Map Style Selector - centered within map area */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-white/95 dark:bg-gray-800/95 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-2 backdrop-blur">
         <div className="flex gap-1">
           {[
             { label: 'Default', value: 'default', icon: Layers },
@@ -1483,7 +1430,7 @@ function EnhancedMap({ propertyData, highlightedProperty, onMarkerHover, onPrope
             <button
               key={theme.value}
               onClick={() => setMapTheme(theme.value)}
-              className={`px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-medium transition-all duration-300 ${
+              className={`px-3 py-2 rounded-xl flex items-center gap-2 text-xs md:text-sm font-medium transition-all duration-300 ${
                 mapTheme === theme.value
                   ? 'bg-[#51faaa] text-[#0a0c19] shadow-lg shadow-[#51faaa]/20'
                   : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -1566,41 +1513,74 @@ function FiltersSidebar({ filters, setFilters, showFilters, onClose }) {
   ];
 
   return (
-    <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-full overflow-y-auto">
+    <motion.div 
+      className="w-80 bg-white/95 dark:bg-gray-800/95 border-r border-gray-200/50 dark:border-gray-700/50 h-full overflow-y-auto backdrop-blur-xl"
+      initial={{ x: -320, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: -320, opacity: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+    >
       <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
+        <motion.div 
+          className="flex items-center justify-between mb-6"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">Filters</h2>
           <div className="flex items-center gap-2">
-            <button 
+            <motion.button 
               onClick={onClose}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              whileHover={{ scale: 1.1, rotate: 90 }}
+              whileTap={{ scale: 0.9 }}
+              transition={{ duration: 0.2 }}
             >
               <X className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-            </button>
-            <button 
+            </motion.button>
+            <motion.button 
               onClick={clearAllFilters}
               className="text-[#51faaa] dark:text-[#51faaa] hover:text-[#dbd5a4] dark:hover:text-[#dbd5a4] text-sm font-medium"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ duration: 0.2 }}
             >
               Clear all
-            </button>
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Quick Filters - Reduced */}
-        <div className="mb-6">
+        {/* Enhanced Quick Filters */}
+        <motion.div 
+          className="mb-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+        >
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Quick Filters</label>
           <div className="space-y-2">
-            <label className="flex items-center">
-              <input 
+            <motion.label 
+              className="flex items-center cursor-pointer"
+              whileHover={{ x: 4 }}
+              transition={{ duration: 0.2 }}
+            >
+              <motion.input 
                 type="checkbox" 
                 checked={filters.isFurnished}
                 onChange={(e) => handleFilterChange('isFurnished', e.target.checked)}
                 className="mr-2 rounded border-gray-300 dark:border-gray-700 text-[#51faaa] focus:ring-[#51faaa]" 
+                whileTap={{ scale: 0.9 }}
               />
               <span className="text-sm text-gray-700 dark:text-gray-200 flex items-center gap-1">
-                <Home className="w-4 h-4" /> Furnished
+                <motion.div
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Home className="w-4 h-4" />
+                </motion.div>
+                Furnished
               </span>
-            </label>
+            </motion.label>
             <label className="flex items-center">
               <input
                 type="checkbox"
@@ -1635,7 +1615,7 @@ function FiltersSidebar({ filters, setFilters, showFilters, onClose }) {
               </span>
             </label>
           </div>
-        </div>
+        </motion.div>
 
         {/* Price Range */}
         <div className="mb-6">
@@ -1772,12 +1752,27 @@ function FiltersSidebar({ filters, setFilters, showFilters, onClose }) {
           </select>
         </div>
 
-        {/* Apply Filters Button */}
-        <button className="w-full bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#0a0c19] font-semibold py-3 px-6 rounded-xl hover:shadow-lg hover:shadow-[#51faaa]/25 transition-all duration-300">
-          Apply Filters
-        </button>
+        {/* Enhanced Apply Filters Button */}
+        <motion.button 
+          className="w-full bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#0a0c19] font-semibold py-3 px-6 rounded-xl hover:shadow-lg hover:shadow-[#51faaa]/25 transition-all duration-300 relative overflow-hidden"
+          whileHover={{ 
+            scale: 1.02,
+            y: -2
+          }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        >
+          {/* Shimmer effect */}
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
+            initial={{ x: '-100%' }}
+            whileHover={{ x: '100%' }}
+            transition={{ duration: 0.6 }}
+          />
+          <span className="relative z-10">Apply Filters</span>
+        </motion.button>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -1793,9 +1788,19 @@ const QuickFilters = React.memo(({ filters, setFilters }) => {
 // Property Card Skeleton
 function PropertyCardSkeleton({ viewMode = 'list' }) {
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden animate-pulse ${
-      viewMode === 'grid' ? 'flex flex-col' : 'flex flex-row'
-    }`}>
+    <motion.div 
+      className={`bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden ${
+        viewMode === 'grid' ? 'flex flex-col' : 'flex flex-row'
+      }`}
+      animate={{
+        opacity: [0.5, 1, 0.5],
+      }}
+      transition={{
+        duration: 1.5,
+        repeat: Infinity,
+        ease: "easeInOut"
+      }}
+    >
       <div className={`bg-gray-200 dark:bg-gray-700 ${
         viewMode === 'grid' ? 'h-64' : 'h-32 w-48 flex-shrink-0'
       }`} />
@@ -1811,7 +1816,7 @@ function PropertyCardSkeleton({ viewMode = 'list' }) {
         <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded-lg w-full" />
         <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-lg w-1/2" />
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -1989,13 +1994,40 @@ export default function MapView() {
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: MAP_LIBRARIES
   });
+  
+  // State for Maps API error tracking
+  const [mapsApiError, setMapsApiError] = useState(false);
   const mapsReady = isLoaded || (typeof window !== 'undefined' && window.google && window.google.maps);
+  
   useEffect(() => {
     if (loadError) {
       console.error('Google Maps JS API load error:', loadError);
-      setMapsApiError?.(true);
+      setMapsApiError(true);
     }
   }, [loadError]);
+  
+  // Check if we have a valid Google Maps API key
+  if (!HAS_GOOGLE_MAPS_KEY) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center p-8">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-4">
+            <MapPin className="w-8 h-8 text-red-600 dark:text-red-400" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            Google Maps API Key Missing
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            Please configure your Google Maps API key to view the map.
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-500">
+            Check your environment variables for VITE_GOOGLE_MAPS_API_KEY
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({
@@ -2040,7 +2072,6 @@ export default function MapView() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [mapCenter, setMapCenter] = useState(DEFAULT_CENTER);
   const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
-  const [mapsApiError, setMapsApiError] = useState(false);
   
   const { currentUser, toggleFavorite, isFavorite } = useAuth();
   const navigate = useNavigate();
@@ -2167,12 +2198,12 @@ export default function MapView() {
             ...property,
             latitude: lat,
             longitude: lng,
-            // Ensure other required fields exist
-            images: property.images || ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&h=400&fit=crop'],
-            features: property.features || ['Updated Kitchen', 'Hardwood Floors', 'Central Air'],
-            agent: property.agent || { name: 'Real Estate Agent', phone: '(555) 123-4567', email: 'agent@example.com', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face', rating: 4.5, reviews: 25, experience: '5+ years' },
-            listing_agent: property.listing_agent || { name: 'Listing Agent', phone: '(555) 123-4567', email: 'listing@example.com', photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face' },
-            neighborhood: property.neighborhood || { name: 'Downtown', walkScore: 85, transitScore: 75, bikeScore: 80, crimeRate: 'Low', population: '50,000', medianAge: 35, medianIncome: '$75,000' },
+            // Ensure other required fields exist with real data or sensible defaults
+            images: property.images || [],
+            features: property.features || [],
+            agent: property.agent || null,
+            listing_agent: property.listing_agent || null,
+            neighborhood: property.neighborhood || null,
             schools: property.schools || [],
             price_history: property.price_history || [],
             virtual_tour: property.virtual_tour || false,
@@ -2370,7 +2401,7 @@ export default function MapView() {
   };
 
   return (
-    <div className="h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300 pt-0 overflow-hidden">
+    <div className="h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300 overflow-hidden">
       {/* Enhanced Mobile Navigation */}
       <EnhancedMobileMapNavigation
         searchQuery={searchQuery}
@@ -2391,84 +2422,191 @@ export default function MapView() {
         setLocationLoading={setLocationLoading}
       />
 
-      {/* Desktop Header Navigation */}
-      <div className="hidden lg:block bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40 backdrop-blur-xl bg-white/90 dark:bg-gray-800/90">
+      {/* Enhanced Desktop Header Navigation */}
+      <motion.div 
+        className="hidden lg:block bg-white/95 dark:bg-gray-800/95 border-b border-gray-200/50 dark:border-gray-700/50 sticky top-0 z-40 backdrop-blur-xl shadow-lg shadow-black/5"
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
         <div className="px-4 lg:px-6 py-2">
           {/* Top Row - Search, Logo, and Navigation */}
-          <div className="flex items-center justify-between gap-6 mb-3">
+          <motion.div 
+            className="flex items-center justify-between gap-6 mb-2"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
             {/* Left - Search Bar and View Toggle */}
             <div className="flex items-center gap-4 flex-1 max-w-3xl">
               <div className="flex-1 min-w-0">
-                <EnhancedSearchBar
+                <SmartSearchBar
                   searchQuery={searchQuery}
                   setSearchQuery={setSearchQuery}
                   propertyCount={filteredData.length}
                   filters={filters}
-                  setFilters={setFilters}
+                  onFilterChange={setFilters}
                   showFilters={showFilters}
-                  setShowFilters={setShowFilters}
+                  onToggleFilters={() => setShowFilters(!showFilters)}
                   onLocationSelect={handleLocationSelect}
+                  onSearch={(query) => {
+                    setSearchQuery(query);
+                    // Trigger search logic here
+                  }}
+                  suggestions={[
+                    'Apartments in Nairobi',
+                    'Houses in Mombasa',
+                    'Land in Kisumu',
+                    'Commercial properties',
+                    'Student housing',
+                    'Gated communities'
+                  ]}
                 />
               </div>
               
-              {/* View Toggle next to search bar */}
-              <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-full p-1 shadow-sm flex-shrink-0">
-                <button
+              {/* Enhanced View Toggle next to search bar */}
+              <motion.div 
+                className="flex items-center bg-gray-100/80 dark:bg-gray-700/80 rounded-full p-1 shadow-lg backdrop-blur-sm flex-shrink-0 border border-gray-200/50 dark:border-gray-600/50"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: 0.4 }}
+              >
+                <motion.button
                   onClick={() => setViewMode('grid')}
-                  className={`px-3 py-1.5 rounded-full transition-all duration-300 flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-full transition-all duration-300 flex items-center gap-1.5 relative overflow-hidden ${
                     viewMode === 'grid'
                       ? 'bg-white dark:bg-gray-600 shadow-md text-[#51faaa] dark:text-[#51faaa] font-medium'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
                   }`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  <Grid className="w-3.5 h-3.5" />
-                  <span className="text-xs hidden sm:inline">Grid</span>
-                </button>
-                <button
+                  {viewMode === 'grid' && (
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-[#51faaa]/20 to-[#dbd5a4]/20"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  )}
+                  <motion.div
+                    animate={{ rotate: viewMode === 'grid' ? 0 : 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Grid className="w-3.5 h-3.5 relative z-10" />
+                  </motion.div>
+                  <span className="text-xs hidden sm:inline relative z-10">Grid</span>
+                </motion.button>
+                <motion.button
                   onClick={() => setViewMode('list')}
-                  className={`px-3 py-1.5 rounded-full transition-all duration-300 flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-full transition-all duration-300 flex items-center gap-1.5 relative overflow-hidden ${
                     viewMode === 'list'
                       ? 'bg-white dark:bg-gray-600 shadow-md text-[#51faaa] dark:text-[#51faaa] font-medium'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
                   }`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  <List className="w-3.5 h-3.5" />
-                  <span className="text-xs hidden sm:inline">List</span>
-                </button>
-              </div>
+                  {viewMode === 'list' && (
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-[#51faaa]/20 to-[#dbd5a4]/20"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  )}
+                  <motion.div
+                    animate={{ rotate: viewMode === 'list' ? 0 : 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <List className="w-3.5 h-3.5 relative z-10" />
+                  </motion.div>
+                  <span className="text-xs hidden sm:inline relative z-10">List</span>
+                </motion.button>
+              </motion.div>
             </div>
             
-            {/* Center - Brand Logo */}
-            <div className="flex items-center justify-center flex-shrink-0">
-              <div className="flex items-center">
-                <a className="flex items-center gap-3 group" href="/">
-                  <div className="w-11 h-11 bg-gradient-to-br from-[#51faaa] to-[#dbd5a4] rounded-2xl flex items-center justify-center shadow-lg shadow-[#51faaa]/25 group-hover:shadow-xl group-hover:shadow-[#51faaa]/40 transition-all duration-300">
-                    <span className="text-[#111] text-lg font-bold">H</span>
-                  </div>
-                  <span className={`hidden sm:block text-xl font-bold tracking-tight transition-colors ${
-                    isDark 
-                      ? 'text-white group-hover:text-[#51faaa]' 
-                      : 'text-gray-900 group-hover:text-[#51faaa]'
-                  }`}>
-                    Hama Estate
-                  </span>
-                </a>
-              </div>
-            </div>
-            
-            {/* Right - Controls Only */}
-            <div className="flex items-center gap-3 flex-shrink-0">
-              {/* Theme Toggle */}
-              <button 
-                onClick={toggleTheme}
-                className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            {/* Enhanced Center - Brand Logo */}
+            <motion.div 
+              className="flex items-center justify-center flex-shrink-0"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4, delay: 0.3 }}
+            >
+              <motion.div 
+                className="flex items-center"
+                whileHover={{ scale: 1.05 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
-                {isDark ? (
-                  <Sun className="w-4 h-4 text-yellow-500" />
-                ) : (
-                  <Moon className="w-4 h-4 text-gray-600" />
-                )}
-              </button>
+                <Link className="flex items-center gap-3 group" to="/">
+                  <motion.div 
+                    className="w-11 h-11 bg-gradient-to-br from-[#51faaa] to-[#dbd5a4] rounded-2xl flex items-center justify-center shadow-lg shadow-[#51faaa]/25 group-hover:shadow-xl group-hover:shadow-[#51faaa]/40 transition-all duration-300 relative overflow-hidden"
+                    whileHover={{ rotate: 5 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    {/* Subtle shimmer effect */}
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
+                      initial={{ x: '-100%' }}
+                      whileHover={{ x: '100%' }}
+                      transition={{ duration: 0.6 }}
+                    />
+                    <span className="text-[#111] text-lg font-bold relative z-10">H</span>
+                  </motion.div>
+                  <motion.span 
+                    className={`hidden sm:block text-xl font-bold tracking-tight transition-colors ${
+                      isDark 
+                        ? 'text-white group-hover:text-[#51faaa]' 
+                        : 'text-gray-900 group-hover:text-[#51faaa]'
+                    }`}
+                    whileHover={{ y: -2 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    Hama Estate
+                  </motion.span>
+                </Link>
+              </motion.div>
+            </motion.div>
+            
+            {/* Enhanced Right - Controls Only */}
+            <motion.div 
+              className="flex items-center gap-3 flex-shrink-0"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: 0.5 }}
+            >
+              {/* Enhanced Theme Toggle */}
+              <motion.button 
+                onClick={toggleTheme}
+                className="p-2 rounded-full bg-gray-100/80 dark:bg-gray-700/80 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-300 relative overflow-hidden backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50"
+                whileHover={{ 
+                  scale: 1.1,
+                  y: -2
+                }}
+                whileTap={{ scale: 0.9 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              >
+                {/* Subtle background glow on hover */}
+                <motion.div
+                  className="absolute inset-0 rounded-full opacity-0"
+                  whileHover={{ 
+                    opacity: 0.1,
+                    backgroundColor: isDark ? "#fbbf24" : "#6b7280"
+                  }}
+                  transition={{ duration: 0.3 }}
+                />
+                <motion.div
+                  className="relative z-10"
+                  animate={{ rotate: isDark ? 180 : 0 }}
+                  transition={{ duration: 0.5, ease: "easeInOut" }}
+                >
+                  {isDark ? (
+                    <Sun className="w-4 h-4 text-yellow-500" />
+                  ) : (
+                    <Moon className="w-4 h-4 text-gray-600" />
+                  )}
+                </motion.div>
+              </motion.button>
               
               {/* Auth Buttons / Profile */}
               {currentUser ? (
@@ -2496,8 +2634,8 @@ export default function MapView() {
                   </a>
                 </div>
               )}
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
           
           {/* Bottom Row - Sort and Quick Filters */}
           <div className="flex items-center justify-between gap-3">
@@ -2596,18 +2734,27 @@ export default function MapView() {
             </select>
           </div>
         </div>
-      </div>
+        
+      </motion.div>
 
-      {/* Main Content */}
-        <div className="flex h-[calc(100vh-80px)] pb-6 md:pb-8">
-        <FiltersSidebar 
-          filters={filters}
-          setFilters={setFilters}
-          showFilters={showFilters}
-          onClose={() => setShowFilters(false)}
-        />
+      {/* Main Content - Fixed Layout (wrapper removed per request) */}
+        {/* Conditional Filters Sidebar - Only show when showFilters is true */}
+        {showFilters && (
+          <>
+            <div className="fixed inset-x-0 top-[96px] bottom-0 bg-black/30 backdrop-blur-sm z-40" onClick={() => setShowFilters(false)} />
+            <div className="fixed left-0 top-[96px] w-80 h-[calc(100vh-96px)] z-50">
+            <AdvancedFiltersSidebar 
+              filters={filters}
+              setFilters={setFilters}
+              showFilters={showFilters}
+              onClose={() => setShowFilters(false)}
+            />
+          </div>
+          </>
+        )}
 
-        <div className="flex-1">
+        {/* Map Area */}
+        <div className="flex-1 relative z-0 pointer-events-auto pr-[52%] md:pr-[48%] lg:pr-[44%] xl:pr-[42%] 2xl:pr-[40%]">
           <ErrorBoundary>
             {!HAS_GOOGLE_MAPS_KEY || mapsApiError ? (
               <FallbackMap
@@ -2615,82 +2762,93 @@ export default function MapView() {
                 onPropertySelect={handlePropertySelect}
               />
             ) : (
-          <EnhancedMap
-            propertyData={filteredData}
-            highlightedProperty={highlightedProperty}
-            onMarkerHover={handlePropertyHover}
-            onPropertySelect={handlePropertySelect}
-            drawnBounds={drawnBounds}
-            setDrawnBounds={setDrawnBounds}
-            mapTheme={mapTheme}
-            setMapTheme={setMapTheme}
-            mapCenter={mapCenter}
-            setMapCenter={setMapCenter}
-            mapZoom={mapZoom}
-            setMapZoom={setMapZoom}
-          />
+              <EnhancedMap
+                propertyData={filteredData}
+                highlightedProperty={highlightedProperty}
+                onMarkerHover={handlePropertyHover}
+                onPropertySelect={handlePropertySelect}
+                drawnBounds={drawnBounds}
+                setDrawnBounds={setDrawnBounds}
+                mapTheme={mapTheme}
+                setMapTheme={setMapTheme}
+                mapCenter={mapCenter}
+                setMapCenter={setMapCenter}
+                mapZoom={mapZoom}
+                setMapZoom={setMapZoom}
+              />
             )}
           </ErrorBoundary>
         </div>
 
-        <div className="w-full lg:w-2/5 bg-gray-50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
-          <div className="p-4">
+        {/* Fixed Listings Container - Only this scrolls */}
+        <div className="fixed right-0 top-[120px] w-[48%] lg:w-[44%] xl:w-[42%] 2xl:w-[40%] h-[calc(100vh-120px)] bg-gray-50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 z-20 pointer-events-auto">
+          {/* Fixed Market Insights */}
+          <div className="sticky top-0 px-3 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur supports-[backdrop-filter]:bg-gray-50/80 z-10">
             <MarketInsights location={searchQuery || 'Nairobi'} propertyCount={filteredData.length} searchQuery={searchQuery} />
-            
-            {/* No Results Message */}
-            {filteredData.length === 0 && (searchQuery || userLocation) && (
-              <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/40 rounded-lg flex items-center justify-center">
-                    <Search className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                      No properties found
-                    </p>
-                    <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                      Try adjusting your search terms or filters
-                    </p>
-                  </div>
+          </div>
+          
+          {/* Listings Header */}
+          <div className="sticky top-[72px] px-3 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur z-10">
+            <div className="flex items-center justify-between">
+              <button
+                className="px-4 py-2 rounded-full shadow-lg bg-white/90 dark:bg-gray-800/90 border border-gray-200/60 dark:border-gray-700/60 backdrop-blur flex items-center gap-2 hover:shadow-xl transition-all"
+                title={searchQuery ? `Results for "${searchQuery}"` : 'Properties found'}
+                onClick={() => { try { const el = document.getElementById('listings-scroll'); if (el) el.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) {} }}
+              >
+                <div className="w-6 h-6 rounded-full flex items-center justify-center bg-gradient-to-r from-[#51faaa] to-[#dbd5a4]">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-[#0a0c19]">
+                    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
+                    <path d="M5 3v4"></path>
+                    <path d="M19 17v4"></path>
+                    <path d="M3 5h4"></path>
+                    <path d="M17 19h4"></path>
+                  </svg>
                 </div>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">{filteredData.length} properties</span>
+                {searchQuery && (
+                  <span className="hidden sm:inline text-xs text-gray-600 dark:text-gray-400">• "{searchQuery}"</span>
+                )}
+              </button>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600 dark:text-gray-400 hidden sm:inline">{viewMode === 'grid' ? 'Grid View' : 'List View'}</span>
               </div>
-            )}
-            
-    {/* property card */}
-            {isLoading ? (
-              <div className={`grid gap-4 ${
-                viewMode === 'grid' 
-                  ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2' 
-                  : 'grid-cols-1'
+            </div>
+          </div>
+          
+          {/* Scrollable Cards */}
+          <div id="listings-scroll" className="h-[calc(100%-160px)] overflow-y-auto">
+            <div className="px-3 pb-8 pt-3">
+              <div className={`grid gap-4 sm:gap-5 lg:gap-6 ${
+                    viewMode === 'grid' 
+                  ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3'
+                      : 'grid-cols-1'
               }`}>
-                {[1, 2, 3, 4].map(i => (
-                  <PropertyCardSkeleton key={i} viewMode={viewMode} />
-                ))}
+                {isLoading ? (
+                  [1,2,3,4,5,6].map(i => (
+                    <PropertyCardSkeleton key={i} viewMode={viewMode} />
+                  ))
+                ) : (
+                  filteredData.map((property) => (
+                    <PropertyCard
+                        key={property.id}
+                          property={property}
+                      isHighlighted={highlightedProperty === property.id}
+                      onMouseEnter={handlePropertyHover}
+                      onMouseLeave={() => setHighlightedProperty(null)}
+                      onMarkerHover={setHoveredMarkerId}
+                          onQuickView={handleQuickView}
+                          viewMode={viewMode}
+                        />
+                  ))
+              )}
               </div>
-            ) : (
-              <div className={`grid gap-4 ${
-                viewMode === 'grid' 
-                  ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2' 
-                  : 'grid-cols-1'
-              }`}>
-                {filteredData.map((property) => (
-                  <PropertyCard
-                    key={property.id}
-                    property={property}
-                    isHighlighted={highlightedProperty === property.id}
-                    onMouseEnter={handlePropertyHover}
-                    onMouseLeave={() => setHighlightedProperty(null)}
-                    onMarkerHover={setHoveredMarkerId}
-                    onQuickView={handleQuickView}
-                    viewMode={viewMode}
-                  />
-                  
-                ))}
-              </div>
-            )}
+              
+              {/* Bottom Spacer */}
+              <div className="h-12" />
+            </div>
           </div>
         </div>
-      </div>
+      
 
       <QuickViewModal
         property={quickViewProperty}
@@ -2699,6 +2857,7 @@ export default function MapView() {
         onFavoriteToggle={toggleFavorite}
         isFavorite={quickViewProperty && isFavorite && isFavorite(quickViewProperty.id)}
       />
+
 
       <style>{`
         @keyframes modal-slide-up {

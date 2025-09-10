@@ -145,7 +145,7 @@ const Agents = () => {
     if (!user || !user.uid) {
       console.log('User not authenticated, redirecting to login');
       // Redirect to login if not authenticated
-      navigate('/login', { state: { from: window.location.pathname } });
+      navigate('/desktop/login', { state: { from: window.location.pathname } });
       return;
     }
 

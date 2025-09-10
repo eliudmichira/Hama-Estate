@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, useScroll, useTransform, useInView } from 'framer-motion';
 import { 
   Search, MapPin, Home, Award, Users, Building2, Star, Shield, Sparkles,
   ChevronRight, Check, TrendingUp, Phone, Mail, MessageCircle, Play,
@@ -10,6 +11,16 @@ import Hero from '../../components/hero/Hero';
 import { useTheme } from '../../context/ThemeContext';
 import { useFeaturedProperties } from '../../hooks/useProperties';
 import { SpinnerLoader } from '../../components/Preloader';
+import { SimpleSpinner } from '../../components/SimpleLoadingStates';
+import { 
+  GoogleLevelSearchBar, 
+  GoogleLevelFeatureCard 
+} from '../../components/enhanced/GoogleLevelHomeSections';
+import { 
+  GoogleLevelPropertyCard, 
+  GoogleLevelTestimonialCard 
+} from '../../components/enhanced/GoogleLevelPropertyShowcase';
+import { testimonialsAPI } from '../../lib/firebaseAPI';
 
 // Custom hooks
 const useIntersectionObserver = (options = {}) => {
@@ -54,6 +65,15 @@ const useParallax = (speed = 0.5) => {
 function PropertyCard({ property, index, onClick }) {
   const { isDark } = useTheme();
   const [isSaved, setIsSaved] = useState(false);
+  
+  // Debug logging to identify the issue
+  React.useEffect(() => {
+    if (property && property.location && typeof property.location === 'object') {
+      console.log('🔍 Property location object:', property.location);
+      console.log('🔍 Property location type:', typeof property.location);
+      console.log('🔍 Property location keys:', Object.keys(property.location));
+    }
+  }, [property]);
 
   const handleContactAgent = (e) => {
     e.stopPropagation();
@@ -86,12 +106,14 @@ function PropertyCard({ property, index, onClick }) {
           loading="lazy"
         />
         
-        {/* Minimal Featured Badge */}
-        <div className="absolute top-4 left-4">
-          <span className="px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-md bg-white/90 text-gray-900 shadow-sm group-hover:shadow-lg group-hover:shadow-[#51faaa]/20 transition-all duration-300">
-            ⭐ Featured
-          </span>
-        </div>
+        {/* Featured Badge - only if property marks it */}
+        {(property.featured || property.is_featured) && (
+          <div className="absolute top-4 left-4">
+            <span className="px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-md bg-white/90 text-gray-900 shadow-sm group-hover:shadow-lg group-hover:shadow-[#51faaa]/20 transition-all duration-300">
+              ⭐ Featured
+            </span>
+          </div>
+        )}
         
         {/* Minimal Save Button */}
         <button 
@@ -139,16 +161,26 @@ function PropertyCard({ property, index, onClick }) {
               <p className={`text-sm ${
                 isDark ? 'text-white/70' : 'text-gray-600'
               }`}>
-                {property.location?.address || property.address}
+                {(() => {
+                  // Safely extract address from location object or fallback to property.address
+                  if (typeof property.location === 'string') {
+                    return property.location;
+                  } else if (property.location && typeof property.location === 'object') {
+                    return property.location.address || property.location.city || property.location.state || '';
+                  }
+                  return property.address || '';
+                })()}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 bg-yellow-500 px-2 py-1 rounded-full">
-            <Star className="w-4 h-4 text-white fill-current" />
-            <span className="text-white text-sm font-medium">
-              {property.rating || 4.8}
-            </span>
-          </div>
+          {typeof property.rating === 'number' && (
+            <div className="flex items-center gap-1.5 bg-yellow-500 px-2 py-1 rounded-full">
+              <Star className="w-4 h-4 text-white fill-current" />
+              <span className="text-white text-sm font-medium">
+                {property.rating.toFixed(1)}
+              </span>
+            </div>
+          )}
         </div>
         
         {/* Price Display */}
@@ -159,47 +191,59 @@ function PropertyCard({ property, index, onClick }) {
             }`}>
               {formatPrice(property.price)}
             </div>
-            <div className={`text-xs ${
-              isDark ? 'text-white/60' : 'text-gray-500'
-            }`}>
-              per month
-            </div>
+            {(
+              typeof property.listing_type === 'string' && property.listing_type.toLowerCase() === 'rent'
+            ) && (
+              <div className={`text-xs ${
+                isDark ? 'text-white/60' : 'text-gray-500'
+              }`}>
+                per month
+              </div>
+            )}
           </div>
           <div className="text-right">
-            <div className={`text-sm font-medium ${
-              isDark ? 'text-white' : 'text-gray-900'
-            }`}>
-              Available Now
-            </div>
-            <div className={`text-xs ${
-              isDark ? 'text-white/60' : 'text-gray-500'
-            }`}>
-              3 days on market
-            </div>
+            {property.status && (
+              <div className={`text-sm font-medium ${
+                isDark ? 'text-white' : 'text-gray-900'
+              }`}>
+                {property.status}
+              </div>
+            )}
+            {typeof property.days_on_market === 'number' && (
+              <div className={`text-xs ${
+                isDark ? 'text-white/60' : 'text-gray-500'
+              }`}>
+                {property.days_on_market} days on market
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Minimal Amenities */}
-        <div className="flex items-center gap-4 text-xs">
-          <span className={`flex items-center gap-1 ${
-            isDark ? 'text-white/70' : 'text-gray-600'
-          }`}>
-            <Wifi className="w-3 h-3" />
-            <span>WiFi</span>
-          </span>
-          <span className={`flex items-center gap-1 ${
-            isDark ? 'text-white/70' : 'text-gray-600'
-          }`}>
-            <Car className="w-3 h-3" />
-            <span>Parking</span>
-          </span>
-          <span className={`flex items-center gap-1 ${
-            isDark ? 'text-white/70' : 'text-gray-600'
-          }`}>
-            <Trees className="w-3 h-3" />
-            <span>Garden</span>
-          </span>
-        </div>
+        {/* Amenities - show only what exists */}
+        {(() => {
+          const amenities = Array.isArray(property.amenities) ? property.amenities.map(a => String(a).toLowerCase()) : [];
+          const features = Array.isArray(property.features) ? property.features.map(f => String(f).toLowerCase()) : [];
+          const hasWifi = amenities.includes('wifi') || amenities.includes('fibre') || features.includes('wifi');
+          const hasParking = amenities.includes('parking') || features.includes('parking') || property.hasParking;
+          const hasGarden = amenities.includes('garden') || features.includes('garden');
+          const chips = [
+            hasWifi && { key: 'wifi', icon: <Wifi className="w-3 h-3" />, label: 'WiFi' },
+            hasParking && { key: 'parking', icon: <Car className="w-3 h-3" />, label: 'Parking' },
+            hasGarden && { key: 'garden', icon: <Trees className="w-3 h-3" />, label: 'Garden' }
+          ].filter(Boolean);
+          return chips.length > 0 ? (
+            <div className="flex items-center gap-4 text-xs">
+              {chips.map(chip => (
+                <span key={chip.key} className={`flex items-center gap-1 ${
+                  isDark ? 'text-white/70' : 'text-gray-600'
+                }`}>
+                  {chip.icon}
+                  <span>{chip.label}</span>
+                </span>
+              ))}
+            </div>
+          ) : null;
+        })()}
       </div>
     </div>
   );
@@ -207,6 +251,10 @@ function PropertyCard({ property, index, onClick }) {
 
 const HomePage = () => { 
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [remoteTestimonials, setRemoteTestimonials] = useState([]);
+  const [isLoadingTestimonials, setIsLoadingTestimonials] = useState(true);
+  const [isAddReviewOpen, setIsAddReviewOpen] = useState(false);
+  const [reviewForm, setReviewForm] = useState({ name: '', location: '', rating: 5, comment: '' });
   const { isDark } = useTheme();
   
   // Get featured properties from Firebase
@@ -292,59 +340,168 @@ const HomePage = () => {
     };
   }, []);
 
+  // Load testimonials from Firestore with fallback
+  useEffect(() => {
+    (async () => {
+      try {
+        const items = await testimonialsAPI.getAll(12);
+        if (Array.isArray(items) && items.length > 0) {
+          const mapped = items.map((t) => ({
+            name: t.name,
+            location: t.location || '',
+            rating: t.rating || 5,
+            quote: (t.comment || t.quote || '').replace(/virtual tours?/gi, 'photo tours'),
+            avatar: t.avatar || getKenyanAvatar(t.name)
+          }));
+          setRemoteTestimonials(mapped);
+        } else {
+          // fallback to local static testimonials mapped to quote
+          const mappedLocal = testimonials.map((t) => ({ ...t, quote: t.comment, avatar: t.avatar || getKenyanAvatar(t.name) }));
+          setRemoteTestimonials(mappedLocal);
+        }
+      } catch (e) {
+        const mappedLocal = testimonials.map((t) => ({ ...t, quote: t.comment, avatar: t.avatar || getKenyanAvatar(t.name) }));
+        setRemoteTestimonials(mappedLocal);
+      } finally {
+        setIsLoadingTestimonials(false);
+      }
+    })();
+  }, []);
+
+  const handleSubmitReview = async () => {
+    try {
+      if (!reviewForm.name || !reviewForm.comment) return;
+      const payload = {
+        name: reviewForm.name,
+        location: reviewForm.location,
+        rating: Number(reviewForm.rating) || 5,
+        comment: reviewForm.comment,
+        avatar: ''
+      };
+      await testimonialsAPI.create(payload);
+      // Optimistically update UI
+      setRemoteTestimonials((prev) => [
+        { name: payload.name, location: payload.location, rating: payload.rating, quote: payload.comment, avatar: payload.avatar },
+        ...prev
+      ]);
+      setIsAddReviewOpen(false);
+      setReviewForm({ name: '', location: '', rating: 5, comment: '' });
+    } catch (e) {
+      console.error('Failed to submit review', e);
+    }
+  };
+
   return (
     <div className={`min-h-screen transition-colors duration-500 ${
       isDark ? 'bg-[#0a0c19]' : 'bg-gray-50'
     }`}>
-      {/* Hero Section */}
+      {/* Original Hero Section */}
       <Hero />
 
-      {/* Property Types Section */}
-      <section className={`py-24 transition-colors duration-500 ${
-        isDark ? 'bg-[#0a0c19]' : 'bg-gray-50'
-      }`}>
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className={`text-4xl md:text-5xl font-bold mb-6 ${
-              isDark ? 'text-white' : 'text-gray-900'
-            }`}>
-              Find Your Perfect Home
-            </h2>
-            <p className={`text-xl max-w-2xl mx-auto ${
-              isDark ? 'text-white/80' : 'text-gray-600'
-            }`}>
+      {/* Google-Level Property Types Section */}
+      <motion.section 
+        className={`py-24 transition-colors duration-500 relative overflow-hidden ${
+          isDark ? 'bg-[#0a0c19]' : 'bg-gray-50'
+        }`}
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8 }}
+      >
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `radial-gradient(circle at 25% 25%, ${isDark ? '#51faaa' : '#51faaa'} 2px, transparent 2px)`,
+            backgroundSize: '50px 50px'
+          }} />
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
+          <motion.div 
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <motion.h2 
+              className={`text-4xl md:text-5xl font-bold mb-6 ${
+                isDark ? 'text-white' : 'text-gray-900'
+              }`}
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              <span className="bg-gradient-to-r from-primary-500 to-secondary-500 bg-clip-text text-transparent">
+                Find Your Perfect Home
+              </span>
+            </motion.h2>
+            <motion.p 
+              className={`text-xl max-w-2xl mx-auto ${
+                isDark ? 'text-white/80' : 'text-gray-600'
+              }`}
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.4, duration: 0.6 }}
+            >
               Explore different property types and find the one that matches your lifestyle
-            </p>
-          </div>
+            </motion.p>
+          </motion.div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {propertyTypes.map((type) => (
-              <button
+            {propertyTypes.map((type, index) => (
+              <motion.button
                 key={type.id}
                 onClick={() => handlePropertyTypeClick(type.id)}
-                className={`group p-6 rounded-2xl transition-all duration-300 hover:-translate-y-1 ${
+                className={`group p-6 rounded-2xl transition-all duration-300 relative overflow-hidden ${
                   isDark 
                     ? 'bg-[#10121e] shadow-md hover:shadow-lg hover:shadow-[#51faaa]/20 hover:border hover:border-[#51faaa]/30' 
                     : 'bg-white shadow-md hover:shadow-lg hover:shadow-[#51faaa]/20 hover:border hover:border-[#51faaa]/30'
                 }`}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1, duration: 0.6 }}
+                whileHover={{ y: -8, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <div className={`w-12 h-12 mx-auto mb-4 rounded-xl flex items-center justify-center group-hover:bg-gradient-to-br from-[#51faaa]/20 to-[#dbd5a4]/20 group-hover:shadow-lg group-hover:shadow-[#51faaa]/20 transition-all duration-300 ${
-                  isDark ? 'bg-white/5' : 'bg-gray-50'
-                }`}>
-                  <type.icon className={`w-6 h-6 transition-colors duration-300 group-hover:text-[#51faaa] ${
-                    isDark ? 'text-white/80' : 'text-gray-600'
-                  }`} />
+                {/* Background Gradient on Hover */}
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-br from-[#51faaa]/5 to-[#dbd5a4]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  initial={{ scale: 0.8 }}
+                  whileHover={{ scale: 1 }}
+                />
+                
+                <div className="relative z-10">
+                  <motion.div 
+                    className={`w-12 h-12 mx-auto mb-4 rounded-xl flex items-center justify-center group-hover:bg-gradient-to-br from-[#51faaa]/20 to-[#dbd5a4]/20 group-hover:shadow-lg group-hover:shadow-[#51faaa]/20 transition-all duration-300 ${
+                      isDark ? 'bg-white/5' : 'bg-gray-50'
+                    }`}
+                    whileHover={{ rotate: 5, scale: 1.1 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <type.icon className={`w-6 h-6 transition-colors duration-300 group-hover:text-[#51faaa] ${
+                      isDark ? 'text-white/80' : 'text-gray-600'
+                    }`} />
+                  </motion.div>
+                  
+                  <motion.h3 
+                    className={`text-lg font-semibold ${
+                      isDark ? 'text-white' : 'text-gray-900'
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {type.name}
+                  </motion.h3>
                 </div>
-                <h3 className={`text-lg font-semibold ${
-                  isDark ? 'text-white' : 'text-gray-900'
-                }`}>
-                  {type.name}
-                </h3>
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Premium Featured Properties Section */}
       <section className={`py-24 transition-colors duration-500 relative ${
@@ -456,17 +613,7 @@ const HomePage = () => {
 
               <div ref={featuredRef} className="flex gap-6 overflow-hidden scroll-smooth pb-12 pt-6 px-8" style={{ scrollBehavior: 'smooth' }}>
                 {featuredProperties.map((property, index) => (
-                  <div key={property.id} className="min-w-[320px] md:min-w-[360px] lg:min-w-[400px] flex-shrink-0 transform transition-all duration-500 hover:scale-105 animate-pulse-slow">
-                    <PropertyCard 
-                      property={property} 
-                      index={index} 
-                      onClick={() => handlePropertyCardClick(property.id)}
-                    />
-                  </div>
-                ))}
-                {/* Duplicate first few properties for seamless loop */}
-                {featuredProperties.slice(0, 3).map((property, index) => (
-                  <div key={`duplicate-${property.id}`} className="min-w-[320px] md:min-w-[360px] lg:min-w-[400px] flex-shrink-0 transform transition-all duration-500 hover:scale-105 animate-pulse-slow">
+                  <div key={property.id} className="min-w-[320px] md:min-w-[360px] lg:min-w-[400px] flex-shrink-0">
                     <PropertyCard 
                       property={property} 
                       index={index} 
@@ -560,32 +707,13 @@ const HomePage = () => {
           
           <div className="grid md:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <div key={index} className={`p-8 rounded-3xl transition-all duration-500 hover:-translate-y-2 ${
-                isDark 
-                  ? 'bg-[#10121e] border border-white/10 hover:border-[#51faaa]/30 hover:shadow-xl hover:shadow-[#51faaa]/10' 
-                  : 'bg-white border border-gray-100 hover:border-[#51faaa]/30 hover:shadow-xl hover:shadow-gray-200/50'
-              }`}>
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#51faaa] to-[#dbd5a4] flex items-center justify-center mb-6">
-                  <feature.icon className="w-8 h-8 text-[#111]" />
-                </div>
-                <h3 className={`text-2xl font-bold mb-4 ${
-                  isDark ? 'text-white' : 'text-gray-900'
-                }`}>{feature.title}</h3>
-                <p className={`mb-6 leading-relaxed ${
-                  isDark ? 'text-white/80' : 'text-gray-600'
-                }`}>{feature.description}</p>
-                
-                <ul className="space-y-3">
-                  {feature.points.slice(0, 3).map((point, i) => (
-                    <li key={i} className={`flex items-start gap-3 ${
-                      isDark ? 'text-white/70' : 'text-gray-600'
-                    }`}>
-                      <Check className="w-5 h-5 text-[#51faaa] mt-0.5 flex-shrink-0" />
-                      <span>{point}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <GoogleLevelFeatureCard
+                key={index}
+                icon={feature.icon}
+                title={feature.title}
+                description={feature.description}
+                delay={index * 0.2}
+              />
             ))}
           </div>
         </div>
@@ -611,84 +739,151 @@ const HomePage = () => {
           
           <div className="relative">
             <div ref={testimonialsRef} className="flex gap-8 overflow-hidden scroll-smooth pb-2">
-              {testimonials.map((testimonial, index) => (
+              {(isLoadingTestimonials ? testimonials.map((t)=>({ ...t, quote: t.comment })) : remoteTestimonials).map((testimonial, index) => (
                 <div key={index} className="min-w-[320px] md:min-w-[400px] lg:min-w-[450px] flex-shrink-0">
-                  <div className={`p-8 rounded-3xl ${
-                    isDark 
-                      ? 'bg-[#10121e] border border-white/10' 
-                      : 'bg-white border border-gray-100 shadow-lg'
-                  }`}>
-                    <div className="flex items-center gap-1 mb-4">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className={`w-5 h-5 ${i < testimonial.rating ? 'text-yellow-500 fill-current' : 'text-gray-300'}`} />
-                      ))}
-                    </div>
-                    <p className={`text-lg mb-6 leading-relaxed ${
-                      isDark ? 'text-white/80' : 'text-gray-600'
-                    }`}>
-                      "{testimonial.comment}"
-                    </p>
-                    <div className="flex items-center gap-4">
-                      <img 
-                        src={testimonial.avatar} 
-                        alt={testimonial.name}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                      <div>
-                        <h4 className={`font-semibold ${
-                          isDark ? 'text-white' : 'text-gray-900'
-                        }`}>{testimonial.name}</h4>
-                        <p className={`text-sm ${
-                          isDark ? 'text-white/60' : 'text-gray-500'
-                        }`}>{testimonial.location}</p>
-                      </div>
-                    </div>
-                  </div>
+                  <GoogleLevelTestimonialCard 
+                    testimonial={testimonial}
+                    index={index}
+                  />
                 </div>
               ))}
             </div>
             {/* Edge fade overlays */}
             <div className={`pointer-events-none absolute inset-y-0 left-0 w-16 z-10 ${isDark ? 'bg-gradient-to-r from-[#10121e] to-transparent' : 'bg-gradient-to-r from-white to-transparent'}`}></div>
             <div className={`pointer-events-none absolute inset-y-0 right-0 w-16 z-10 ${isDark ? 'bg-gradient-to-l from-[#10121e] to-transparent' : 'bg-gradient-to-l from-white to-transparent'}`}></div>
+            <div className="mt-8 flex justify-center">
+              <button
+                onClick={() => setIsAddReviewOpen(true)}
+                className={`px-5 py-2 rounded-full border ${isDark ? 'border-white/30 text-white/80 hover:bg-white/10' : 'border-gray-300 text-gray-700 hover:bg-gray-50'} transition`}
+              >
+                Add a review
+              </button>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className={`py-24 transition-colors duration-500 ${
-        isDark ? 'bg-[#0a0c19]' : 'bg-gray-50'
-      }`}>
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
-          <h2 className={`text-4xl md:text-5xl font-bold mb-6 ${
-            isDark ? 'text-white' : 'text-gray-900'
-          }`}>
-            Ready to Find Your Dream Home?
-          </h2>
-          <p className={`text-xl mb-8 max-w-2xl mx-auto ${
-            isDark ? 'text-white/80' : 'text-gray-600'
-          }`}>
-            Start your journey today and discover the perfect property that matches your lifestyle
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={handleStartSearching}
-              className="px-8 py-4 bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#111] font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-300"
+      {/* Enhanced CTA Section */}
+      <motion.section 
+        className={`py-24 transition-colors duration-500 relative overflow-hidden ${
+          isDark ? 'bg-[#0a0c19]' : 'bg-gray-50'
+        }`}
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8 }}
+      >
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          {/* Floating Particles */}
+          {[...Array(8)].map((_, i) => (
+            <motion.div
+              key={i}
+              className={`absolute w-2 h-2 rounded-full ${
+                isDark ? 'bg-[#51faaa]/30' : 'bg-[#51faaa]/20'
+              }`}
+              animate={{
+                x: [0, 100, 0],
+                y: [0, -100, 0],
+                opacity: [0.3, 0.8, 0.3],
+              }}
+              transition={{
+                duration: 8 + i * 2,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: i * 1.2
+              }}
+              style={{
+                left: `${10 + i * 12}%`,
+                top: `${20 + i * 8}%`,
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <motion.h2 
+              className={`text-4xl md:text-5xl font-bold mb-6 ${
+                isDark ? 'text-white' : 'text-gray-900'
+              }`}
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
             >
-              Start Searching
-            </button>
-            <button
+              <span className="bg-gradient-to-r from-primary-500 to-secondary-500 bg-clip-text text-transparent">
+                Ready to Find Your Dream Home?
+              </span>
+            </motion.h2>
+            
+            <motion.p 
+              className={`text-xl mb-8 max-w-2xl mx-auto ${
+                isDark ? 'text-white/80' : 'text-gray-600'
+              }`}
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.4, duration: 0.6 }}
+            >
+              Start your journey today and discover the perfect property that matches your lifestyle
+            </motion.p>
+          </motion.div>
+          
+          <motion.div 
+            className="flex flex-col sm:flex-row gap-4 justify-center"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.6, duration: 0.6 }}
+          >
+            <motion.button
+              onClick={handleStartSearching}
+              className="group relative px-8 py-4 bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#111] font-semibold rounded-full overflow-hidden"
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              {/* Shimmer Effect */}
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
+                initial={{ x: '-100%' }}
+                whileHover={{ x: '100%' }}
+                transition={{ duration: 0.6 }}
+              />
+              <span className="relative z-10 flex items-center gap-2">
+                Start Searching
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </motion.button>
+            
+            <motion.button
               onClick={handleScheduleCall}
-              className={`px-8 py-4 border-2 rounded-full font-semibold transition-all duration-300 ${
+              className={`px-8 py-4 border-2 rounded-full font-semibold transition-all duration-300 relative overflow-hidden group ${
                 isDark 
                   ? 'border-[#51faaa] text-[#51faaa] hover:bg-[#51faaa] hover:text-[#111]' 
                   : 'border-[#51faaa] text-[#51faaa] hover:bg-[#51faaa] hover:text-white'
               }`}
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.98 }}
             >
-              Schedule a Call
-            </button>
-          </div>
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                initial={{ scale: 0.8 }}
+                whileHover={{ scale: 1 }}
+              />
+              <span className="relative z-10 flex items-center gap-2">
+                <Phone className="w-4 h-4" />
+                Schedule a Call
+              </span>
+            </motion.button>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Video Modal */}
       {isVideoModalOpen && (
@@ -702,6 +897,44 @@ const HomePage = () => {
             </button>
             <div className="aspect-video bg-gray-100 flex items-center justify-center">
               <Play className="w-20 h-20 text-gray-400" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Review Modal */}
+      {isAddReviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => setIsAddReviewOpen(false)}>
+          <div className={`w-full max-w-lg rounded-2xl p-6 ${isDark ? 'bg-[#0f1222] text-white' : 'bg-white text-gray-900'}`} onClick={(e)=>e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold">Add a review</h3>
+              <button onClick={()=>setIsAddReviewOpen(false)} className={`rounded-full w-8 h-8 flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm mb-1">Name</label>
+                <input value={reviewForm.name} onChange={(e)=>setReviewForm({...reviewForm, name: e.target.value})} className={`w-full rounded-lg px-3 py-2 outline-none ${isDark ? 'bg-white/10 border border-white/10' : 'bg-gray-50 border border-gray-200'}`} placeholder="Your full name" />
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Location</label>
+                <input value={reviewForm.location} onChange={(e)=>setReviewForm({...reviewForm, location: e.target.value})} className={`w-full rounded-lg px-3 py-2 outline-none ${isDark ? 'bg-white/10 border border-white/10' : 'bg-gray-50 border border-gray-200'}`} placeholder="City, Country" />
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Rating</label>
+                <select value={reviewForm.rating} onChange={(e)=>setReviewForm({...reviewForm, rating: e.target.value})} className={`w-full rounded-lg px-3 py-2 outline-none ${isDark ? 'bg-white/10 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
+                  {[5,4,3,2,1].map(r=> <option key={r} value={r}>{r} stars</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Your review</label>
+                <textarea value={reviewForm.comment} onChange={(e)=>setReviewForm({...reviewForm, comment: e.target.value})} rows={4} className={`w-full rounded-lg px-3 py-2 outline-none ${isDark ? 'bg-white/10 border border-white/10' : 'bg-gray-50 border border-gray-200'}`} placeholder="Share your experience" />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button onClick={()=>setIsAddReviewOpen(false)} className={`px-4 py-2 rounded-lg ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>Cancel</button>
+                <button onClick={handleSubmitReview} className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#111] font-semibold">Submit</button>
+              </div>
             </div>
           </div>
         </div>
@@ -754,27 +987,31 @@ const features = [
   }
 ];
 
+// Kenyan avatar fallbacks (deterministic by name)
+// Use initials avatars (no external image dependency)
+const getKenyanAvatar = () => '';
+
 const testimonials = [
   {
     name: "Grace Wanjiku",
     location: "Nairobi, Kenya",
     rating: 5,
-    comment: "Found my dream home in just 2 weeks! The platform made it so easy to compare properties and connect with agents.",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop"
+    comment: "Found my dream home in just 2 weeks! The platform made it so easy to compare properties. I connected with a trusted agent the same day.",
+    avatar: ""
   },
   {
     name: "David Kimani",
     location: "Mombasa, Kenya",
     rating: 5,
-    comment: "Excellent service from start to finish. The virtual tours saved me so much time, and the agent was incredibly helpful.",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop"
+    comment: "Excellent service from start to finish. The photo galleries saved me time. Support followed up until closing.",
+    avatar: ""
   },
   {
-    name: "Sarah Johnson",
+    name: "Aisha Mwende",
     location: "Kisumu, Kenya",
     rating: 5,
-    comment: "The best real estate platform I've ever used. Transparent pricing and no hidden fees. Highly recommended!",
-    avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b3e5?w=150&h=150&fit=crop&crop=face"
+    comment: "Transparent pricing and fast responses. I loved the neighbourhood insights. Highly recommended!",
+    avatar: ""
   }
 ];
 

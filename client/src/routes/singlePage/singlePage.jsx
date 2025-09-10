@@ -111,7 +111,7 @@ function SinglePage() {
   const handleSave = async () => {
     setSaved((prev) => !prev);
     if (!currentUser) {
-      navigate("/login");
+      navigate("/desktop/login");
     }
     try {
       await apiRequest.post("/users/save", { postId: post.id });
@@ -129,7 +129,7 @@ function SinglePage() {
         title: 'Authentication Required',
         message: 'Please log in to send a message to the agent.'
       });
-      navigate("/login", { state: { from: window.location.pathname } });
+      navigate("/desktop/login", { state: { from: window.location.pathname } });
       return;
     }
 

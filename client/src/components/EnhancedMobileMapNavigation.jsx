@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { 
   Search, 
   MapPin, 
@@ -199,7 +199,7 @@ const EnhancedMobileMapNavigation = ({
           <div className="flex items-center justify-between mb-3">
             {/* Logo */}
             <div className="flex items-center">
-              <a className="flex items-center gap-2 group" href="/">
+              <Link className="flex items-center gap-2 group" to="/">
                 <div className="w-9 h-9 bg-gradient-to-br from-[#51faaa] to-[#dbd5a4] rounded-xl flex items-center justify-center shadow-lg shadow-[#51faaa]/25 group-hover:shadow-xl group-hover:shadow-[#51faaa]/40 transition-all duration-300">
                   <span className="text-[#111] text-sm font-bold">H</span>
                 </div>
@@ -210,7 +210,7 @@ const EnhancedMobileMapNavigation = ({
                 }`}>
                   Hama Estate
                 </span>
-              </a>
+              </Link>
             </div>
 
             {/* Right Controls */}

@@ -576,20 +576,62 @@ const AddProperty = () => {
       // Upload new image files to storage, keep existing URLs
       const existingUrls = Array.isArray(formData.images) ? formData.images.filter(Boolean) : [];
       let uploadedUrls = [];
+      let uploadErrors = [];
+      
       if (imageFiles.length > 0) {
         const timeStamp = Date.now();
-        const uploads = imageFiles.map(async (file, idx) => {
-          // Skip if this preview already references a persisted URL (edit mode)
-          if (!file) return null;
-          const path = `properties/${currentUser.id}/${timeStamp}_${idx}_${file.name}`;
-          const url = await storageAPI.uploadImage(file, path);
-          return url;
-        });
-        const results = await Promise.all(uploads);
-        uploadedUrls = results.filter(Boolean);
+        console.log(`🔄 Attempting to upload ${imageFiles.length} images...`);
+        
+        // Try to upload images, but don't fail the entire property creation if upload fails
+        for (let idx = 0; idx < imageFiles.length; idx++) {
+          const file = imageFiles[idx];
+          if (!file) continue;
+          
+          try {
+            const path = `properties/${currentUser.id}/${timeStamp}_${idx}_${file.name}`;
+            console.log(`📤 Uploading image ${idx + 1}/${imageFiles.length}: ${file.name}`);
+            const url = await storageAPI.uploadImage(file, path);
+            uploadedUrls.push(url);
+            console.log(`✅ Image ${idx + 1} uploaded successfully`);
+          } catch (error) {
+            console.error(`❌ Failed to upload image ${idx + 1}:`, error);
+            uploadErrors.push({
+              fileName: file.name,
+              error: error.message
+            });
+            
+            // If it's a CORS error, show a helpful message
+            if (error.message.includes('CORS') || error.message.includes('blocked by CORS policy')) {
+              showToast({
+                type: 'error',
+                title: 'Image Upload Failed',
+                message: 'CORS error: Firebase Storage needs to be configured. Property will be saved without images.'
+              });
+            }
+          }
+        }
+        
+        if (uploadErrors.length > 0) {
+          console.warn(`⚠️ ${uploadErrors.length} images failed to upload:`, uploadErrors);
+        }
       }
 
       const allImages = [...existingUrls, ...uploadedUrls];
+      
+      // Show warning if some images failed to upload
+      if (uploadErrors.length > 0 && uploadedUrls.length === 0) {
+        showToast({
+          type: 'error',
+          title: 'Image Upload Failed',
+          message: 'All images failed to upload due to CORS policy. Please fix Firebase Storage configuration. Property will be saved without images.'
+        });
+      } else if (uploadErrors.length > 0) {
+        showToast({
+          type: 'error',
+          title: 'Some Images Failed',
+          message: `${uploadErrors.length} images failed to upload. Property will be saved with ${uploadedUrls.length} images.`
+        });
+      }
 
       // If editing, update; else create
       let result;
@@ -653,7 +695,29 @@ const AddProperty = () => {
       
       // Navigate to dashboard after a short delay
       setTimeout(() => {
-        navigate('/dashboard?section=my-properties');
+        try {
+          // Check if user is on mobile or desktop and navigate accordingly
+          const isMobile = window.innerWidth <= 768;
+          console.log('Navigating after property creation, isMobile:', isMobile);
+          
+          // Use simpler navigation without URL parameters first
+          if (isMobile) {
+            console.log('Navigating to mobile dashboard');
+            navigate('/dashboard');
+          } else {
+            console.log('Navigating to desktop dashboard');
+            navigate('/desktop/dashboard');
+          }
+        } catch (navError) {
+          console.error('Navigation error:', navError);
+          // Fallback navigation - try simpler routes
+          try {
+            navigate('/dashboard');
+          } catch (fallbackError) {
+            console.error('Fallback navigation error:', fallbackError);
+            navigate('/');
+          }
+        }
       }, 2000);
     } catch (error) {
       console.error('Error adding property:', error);
@@ -681,7 +745,7 @@ const AddProperty = () => {
 
   const handleCancel = () => {
     if (window.confirm('Are you sure you want to cancel? All data will be lost.')) {
-      navigate('/dashboard');
+      navigate('/desktop/dashboard');
     }
   };
 

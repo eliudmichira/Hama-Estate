@@ -203,7 +203,7 @@ const EnhancedMobileNavigation = () => {
                          whileTap={{ scale: 0.92 }}
                        >
               <Link
-                to="/properties"
+                to="/desktop/properties"
                 onClick={() => handleNavClick(navItems[1])}
                 className={`relative flex flex-col items-center justify-center w-16 h-16 rounded-full transition-all duration-300 ${
                    isActive('/properties')
@@ -249,7 +249,7 @@ const EnhancedMobileNavigation = () => {
              whileTap={{ scale: 0.92 }}
            >
              <Link
-               to="/dashboard"
+               to="/desktop/dashboard"
                onClick={() => handleNavClick(navItems[3])}
                className={`relative flex flex-col items-center justify-center w-16 h-16 rounded-full transition-all duration-300 ${
                   isActive('/dashboard')
@@ -614,13 +614,13 @@ const EnhancedMobileNavigation = () => {
                     transition={{ delay: 0.1 }}
                   >
                     <Link
-                      to="/login"
+                      to="/desktop/login"
                       className="w-full py-3 bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#0a0c19] rounded-xl font-semibold text-center shadow-lg"
                     >
                       Login
                     </Link>
                     <Link
-                      to="/register"
+                      to="/desktop/register"
                       className={`w-full py-3 border-2 rounded-xl font-semibold text-center transition-colors ${
                         isDark 
                           ? 'border-gray-700 text-white hover:bg-gray-800' 

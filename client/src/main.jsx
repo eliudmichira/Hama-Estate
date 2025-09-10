@@ -7,6 +7,7 @@ import { AuthProvider } from './context/AuthContext.jsx'
 import { SocketContextProvider } from './context/SocketContext.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import 'leaflet/dist/leaflet.css';
+import { initializeCleanup } from './utils/clearCache';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,8 +22,18 @@ const queryClient = new QueryClient({
 }); 
 
 
+const RootWrapper = ({ children }) => {
+  if (import.meta.env && import.meta.env.DEV) {
+    return children;
+  }
+  return <React.StrictMode>{children}</React.StrictMode>;
+};
+
+// Initialize cleanup
+initializeCleanup();
+
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
+  <RootWrapper>
     {import.meta.env && import.meta.env.PROD ? (console.debug = () => {}, console.info = () => {}, null) : null}
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
@@ -33,5 +44,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         </AuthProvider>   
       </QueryClientProvider>  
     </ThemeProvider>
-  </React.StrictMode>,
+  </RootWrapper>,
 )

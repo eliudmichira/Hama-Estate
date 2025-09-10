@@ -349,7 +349,7 @@ const AccountDashboard = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-xl font-outfit font-bold text-[#feffff]">Favorite Properties</h3>
-        <Link to="/properties" className="text-[#51faaa] font-outfit hover:underline">
+        <Link to="/desktop/properties" className="text-[#51faaa] font-outfit hover:underline">
           Browse More Properties
         </Link>
       </div>
@@ -359,7 +359,7 @@ const AccountDashboard = () => {
           <Heart className="w-16 h-16 text-[#51faaa] mx-auto mb-4" />
           <h4 className="text-lg font-outfit font-semibold text-[#feffff] mb-2">No favorites yet</h4>
           <p className="text-[#ccc] font-outfit mb-4">Start exploring properties and save your favorites</p>
-          <Link to="/properties" className="bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#111] font-outfit font-semibold px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-300">
+          <Link to="/desktop/properties" className="bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#111] font-outfit font-semibold px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-300">
             Explore Properties
           </Link>
         </div>
@@ -375,7 +375,7 @@ const AccountDashboard = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-xl font-outfit font-bold text-[#feffff]">Saved Searches</h3>
-        <Link to="/properties" className="text-[#51faaa] font-outfit hover:underline">
+        <Link to="/desktop/properties" className="text-[#51faaa] font-outfit hover:underline">
           Start New Search
         </Link>
       </div>
@@ -384,7 +384,7 @@ const AccountDashboard = () => {
         <Search className="w-16 h-16 text-[#51faaa] mx-auto mb-4" />
         <h4 className="text-lg font-outfit font-semibold text-[#feffff] mb-2">No saved searches yet</h4>
         <p className="text-[#ccc] font-outfit mb-4">Save your search criteria to get notified about new properties</p>
-        <Link to="/properties" className="bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#111] font-outfit font-semibold px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-300">
+        <Link to="/desktop/properties" className="bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#111] font-outfit font-semibold px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-300">
           Start Searching
         </Link>
       </div>
@@ -427,7 +427,7 @@ const AccountDashboard = () => {
           <Calendar className="w-16 h-16 text-[#51faaa] mx-auto mb-4" />
           <h4 className="text-lg font-outfit font-semibold text-[#feffff] mb-2">No bookings yet</h4>
           <p className="text-[#ccc] font-outfit mb-4">Book property viewings to see your appointments here</p>
-          <Link to="/properties" className="bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#111] font-outfit font-semibold px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-300">
+          <Link to="/desktop/properties" className="bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#111] font-outfit font-semibold px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-300">
             Browse Properties
           </Link>
         </div>
@@ -452,7 +452,7 @@ const AccountDashboard = () => {
         <MessageCircle className="w-16 h-16 text-[#51faaa] mx-auto mb-4" />
         <h4 className="text-lg font-outfit font-semibold text-[#feffff] mb-2">No messages yet</h4>
         <p className="text-[#ccc] font-outfit mb-4">Your conversations with agents and landlords will appear here</p>
-        <Link to="/properties" className="bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#111] font-outfit font-semibold px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-300">
+        <Link to="/desktop/properties" className="bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#111] font-outfit font-semibold px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-300">
           Start Browsing
         </Link>
       </div>

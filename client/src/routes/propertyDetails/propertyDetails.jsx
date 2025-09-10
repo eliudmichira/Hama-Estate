@@ -37,6 +37,7 @@ import { getProperty } from '../../utils/api';
 import { useProperty } from '../../hooks/useProperties';
 import { messagesAPI } from '../../lib/firebaseAPI';
 import { incrementPropertyView } from '../../lib/propertyViews';
+import { getPropertyImages, handleImageError } from '../../utils/imageUtils';
 import ApartmentVacancyDisplay from '../../components/ApartmentVacancyDisplay';
 import { vacancyService } from '../../services/vacancyService';
 
@@ -120,16 +121,16 @@ function PhotoGallery({ images = [], title }) {
   const [imageErrors, setImageErrors] = useState(new Set());
   const { isDark } = useTheme();
 
-  // Ensure images is always an array
-  const safeImages = Array.isArray(images) ? images : [];
+  // Get properly formatted images using utility function
+  const propertyImages = getPropertyImages({ images });
   
   // Handle image loading errors
-  const handleImageError = (imageIndex) => {
+  const handleImageLoadError = (imageIndex) => {
     setImageErrors(prev => new Set(prev).add(imageIndex));
   };
   
   // Filter out images that failed to load
-  const validImages = safeImages.filter((_, index) => !imageErrors.has(index));
+  const validImages = propertyImages.filter((_, index) => !imageErrors.has(index));
   
   // Reset current image when valid images change
   useEffect(() => {
@@ -166,9 +167,9 @@ function PhotoGallery({ images = [], title }) {
         <div className="text-center">
           <Building2 className="w-16 h-16 mx-auto text-gray-400 mb-4" />
           <p className="text-gray-500 dark:text-gray-400">
-            {safeImages.length === 0 ? 'No images available' : 'Images failed to load'}
+            {propertyImages.length === 0 ? 'No images available' : 'Images failed to load'}
           </p>
-          {safeImages.length > 0 && (
+          {propertyImages.length > 0 && (
             <button
               onClick={() => setImageErrors(new Set())}
               className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
@@ -191,7 +192,7 @@ function PhotoGallery({ images = [], title }) {
            loading="lazy"
            decoding="async"
            className="w-full h-full object-cover"
-           onError={() => handleImageError(safeImages.indexOf(validImages[currentImage]))}
+           onError={(e) => handleImageError(e, validImages[currentImage])}
          />
         
                  {/* Navigation Arrows - only show if multiple images */}
@@ -330,7 +331,7 @@ function AgentContactCard({ agent = {}, propertyId, propertyTitle }) {
         title: 'Authentication Required',
         message: 'Please log in to send a message to the agent.'
       });
-      navigate('/login', { state: { from: window.location.pathname } });
+      navigate('/desktop/login', { state: { from: window.location.pathname } });
       return;
     }
 

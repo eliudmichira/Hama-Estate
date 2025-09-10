@@ -69,28 +69,28 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/properties" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
+                <Link to="/desktop/properties" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
                   isDark ? 'text-[#ccc]' : 'text-gray-300'
                 }`}>
                   Properties
                 </Link>
               </li>
               <li>
-                <Link to="/about" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
+                <Link to="/desktop/about" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
                   isDark ? 'text-[#ccc]' : 'text-gray-300'
                 }`}>
                   About Us
                 </Link>
               </li>
               <li>
-                <Link to="/contact" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
+                <Link to="/desktop/contact" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
                   isDark ? 'text-[#ccc]' : 'text-gray-300'
                 }`}>
                   Contact
                 </Link>
               </li>
               <li>
-                <Link to="/register" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
+                <Link to="/properties/add" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
                   isDark ? 'text-[#ccc]' : 'text-gray-300'
                 }`}>
                   List Property
@@ -104,35 +104,35 @@ const Footer = () => {
             <h3 className="text-white font-outfit font-semibold text-lg">Services</h3>
             <ul className="space-y-3">
               <li>
-                <Link to="/buy" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
+                <Link to="/properties?type=buy" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
                   isDark ? 'text-[#ccc]' : 'text-gray-300'
                 }`}>
                   Buy Property
                 </Link>
               </li>
               <li>
-                <Link to="/rent" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
+                <Link to="/properties?type=rent" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
                   isDark ? 'text-[#ccc]' : 'text-gray-300'
                 }`}>
                   Rent Property
                 </Link>
               </li>
               <li>
-                <Link to="/sell" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
+                <Link to="/desktop/register" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
                   isDark ? 'text-[#ccc]' : 'text-gray-300'
                 }`}>
                   Sell Property
                 </Link>
               </li>
               <li>
-                <Link to="/valuation" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
+                <Link to="/desktop/contact" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
                   isDark ? 'text-[#ccc]' : 'text-gray-300'
                 }`}>
                   Property Valuation
                 </Link>
               </li>
               <li>
-                <Link to="/mpesa" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
+                <Link to="/desktop/contact" className={`hover:text-[#51faaa] transition-colors duration-300 font-outfit ${
                   isDark ? 'text-[#ccc]' : 'text-gray-300'
                 }`}>
                   M-Pesa Payments

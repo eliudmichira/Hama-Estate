@@ -19,9 +19,12 @@ const AgentVerification = () => {
       const qAll = query(collection(db, 'agents'), orderBy('createdAt', 'desc'));
       const snap = await getDocs(qAll);
       const items = [];
-      snap.forEach((doc) => items.push({ id: doc.id, ...doc.data() }));
+      snap.forEach((doc) => {
+        items.push({ id: doc.id, ...doc.data() });
+      });
       setAgents(items);
     } catch (e) {
+      console.error('Error loading agents:', e);
       setAgents([]);
     } finally {
       setLoading(false);
@@ -99,6 +102,7 @@ const AgentVerification = () => {
           />
         </div>
       </div>
+
       <div className="flex items-center gap-2">
         <button
           onClick={() => setActiveTab('pending')}
@@ -126,7 +130,9 @@ const AgentVerification = () => {
             <SpinnerLoader text="Loading requests..." />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">{activeTab==='pending' ? 'No pending verification requests' : activeTab==='verified' ? 'No verified agents' : 'No unverified agents'}</div>
+          <div className="p-12 text-center text-gray-500">
+            {activeTab==='pending' ? 'No pending verification requests' : activeTab==='verified' ? 'No verified agents' : 'No unverified agents'}
+          </div>
         ) : (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {filtered.map((r) => (
@@ -177,5 +183,3 @@ const AgentVerification = () => {
 };
 
 export default AgentVerification;
-
-

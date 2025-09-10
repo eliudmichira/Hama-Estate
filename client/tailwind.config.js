@@ -13,18 +13,16 @@ export default {
         'primary': ['Manrope', 'sans-serif'],
       },
       colors: {
-        // Primary - Emerald/Green theme
+        // Primary - Brand Green (Google Material 3 inspired)
         primary: {
-          50: '#ecfdf5',
-          100: '#d1fae5',
-          200: '#a7f3d0',
-          300: '#6ee7b7',
-          400: '#34d399',
-          500: '#10b981',
-          600: '#059669',
-          700: '#047857',
-          800: '#065f46',
-          900: '#064e3b',
+          50: '#f0fdf7',
+          100: '#dcfce7', 
+          400: '#51faaa',
+          500: '#3fd693',
+          600: '#2dd284',
+          700: '#1fb372',
+          800: '#15803d',
+          900: '#0f5132'
         },
         // Redefine as emerald for consistency
         emerald: {
@@ -39,18 +37,18 @@ export default {
           800: '#065f46',
           900: '#064e3b',
         },
-        // Secondary - Purple/Violet
+        // Secondary - Brand Gold/Yellow
         secondary: {
-          50: '#f5f3ff',
-          100: '#ede9fe',
-          200: '#ddd6fe',
-          300: '#c4b5fd',
-          400: '#a78bfa',
-          500: '#8b5cf6',
-          600: '#7c3aed',
-          700: '#6d28d9',
-          800: '#5b21b6',
-          900: '#4c1d95',
+          50: '#fefdf8',
+          100: '#fefbf3',
+          200: '#dbd5a4',
+          300: '#c9c285',
+          400: '#b7af66',
+          500: '#a59c47',
+          600: '#938952',
+          700: '#81764d',
+          800: '#6f6348',
+          900: '#5d5043'
         },
         // Redefine as purple for consistency
         purple: {
@@ -104,10 +102,18 @@ export default {
       },
       boxShadow: {
         'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
-        'glass-inset': 'inset 0 1px 0 0 rgba(52, 211, 153, 0.1)',
+        'glass-inset': 'inset 0 1px 0 0 rgba(81, 250, 170, 0.1)',
         'glass-hover': '0 12px 40px 0 rgba(0, 0, 0, 0.4)',
+        'primary': '0 10px 40px -10px rgba(81, 250, 170, 0.3)',
+        'secondary': '0 10px 40px -10px rgba(219, 213, 164, 0.3)',
         'emerald': '0 6px 20px 0 rgba(5, 150, 105, 0.4)',
         'purple': '0 6px 20px 0 rgba(139, 92, 246, 0.4)',
+        // Google Material 3 inspired shadows
+        'elevation-1': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        'elevation-2': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        'elevation-3': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+        'elevation-4': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+        'elevation-5': '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
       },
       backdropBlur: {
         'glass': '20px',
@@ -128,6 +134,13 @@ export default {
         'gradient-shift': 'gradientShift 20s ease infinite',
         'blob-float': 'blobFloat 25s infinite ease-in-out',
         'blob-pulse': 'blobPulse 20s infinite ease-in-out',
+        // Google Material 3 animations
+        'shimmer': 'shimmer 1.5s linear infinite',
+        'ripple': 'ripple 0.6s ease-out',
+        'emphasize': 'emphasize 0.2s cubic-bezier(0.2, 0.0, 0, 1.0)',
+        'decelerate': 'decelerate 0.3s cubic-bezier(0.05, 0.7, 0.1, 1.0)',
+        'accelerate': 'accelerate 0.2s cubic-bezier(0.3, 0.0, 0.8, 0.15)',
+        'spring': 'spring 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
       },
       keyframes: {
         fadeIn: {
@@ -158,6 +171,33 @@ export default {
         blobPulse: {
           '0%, 100%': { transform: 'translate(-50%, -50%) scale(1)', opacity: '0.08' },
           '50%': { transform: 'translate(-50%, -50%) scale(1.2)', opacity: '0.12' },
+        },
+        // Google Material 3 keyframes
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+        ripple: {
+          '0%': { transform: 'scale(0)', opacity: '0.8' },
+          '100%': { transform: 'scale(4)', opacity: '0' },
+        },
+        emphasize: {
+          '0%': { transform: 'scale(1)', opacity: '1' },
+          '50%': { transform: 'scale(1.05)', opacity: '0.9' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        decelerate: {
+          '0%': { transform: 'scale(0.9)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        accelerate: {
+          '0%': { transform: 'scale(1)', opacity: '1' },
+          '100%': { transform: 'scale(0.9)', opacity: '0' },
+        },
+        spring: {
+          '0%': { transform: 'scale(0.8)', opacity: '0' },
+          '50%': { transform: 'scale(1.05)' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
         },
       },
       transitionProperty: {

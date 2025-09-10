@@ -191,7 +191,7 @@ function ProfileUpdatePage() {
 
   // Redirect if not authenticated
   if (!currentUser) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/desktop/login" replace />;
   }
 
   return (

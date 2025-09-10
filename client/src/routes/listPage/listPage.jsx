@@ -633,20 +633,11 @@ function MarketInsights({ location, propertyCount }) {
                 ? 'bg-[#10121e]/80 border-[#51faaa]/10' 
                 : 'bg-white/80 border-gray-200'
             }`}>
-              <p className={`text-sm mb-1 ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>Bank Rates</p>
-              {bank?.commercial_banks?.min_pct != null && bank?.commercial_banks?.max_pct != null ? (
-                <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {bank?.commercial_banks?.min_pct}% - {bank?.commercial_banks?.max_pct}%
-                </p>
-              ) : (
-                <p className={`${isDark ? 'text-white/60' : 'text-gray-500'}`}>—</p>
-              )}
-              {bank?.commercial_banks?.max_tenor_years != null && (
-                <p className={`text-sm ${isDark ? 'text-[#ccc]' : 'text-gray-600]'}`}>Tenor: up to {bank?.commercial_banks?.max_tenor_years} years</p>
-              )}
-              {bank?.saccos?.min_pct != null && bank?.saccos?.max_pct != null && (
-                <p className={`text-sm mt-1 ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>SACCOs: {bank?.saccos?.min_pct}% - {bank?.saccos?.max_pct}%</p>
-              )}
+              <p className={`text-sm mb-1 ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>Plot Prices</p>
+              <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Ksh 2.5M – 7M
+              </p>
+              <p className={`text-sm ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>(1/8 acre)</p>
             </div>
 
             <div className={`backdrop-blur-sm rounded-xl p-4 hover:shadow-lg transition-all duration-300 border ${
@@ -674,17 +665,10 @@ function MarketInsights({ location, propertyCount }) {
 
           <div className={`mt-4 grid grid-cols-2 gap-4`}>
             <div className={`backdrop-blur-sm rounded-xl p-4 border ${isDark ? 'bg-[#10121e]/80 border-[#51faaa]/10' : 'bg-white/80 border-gray-200'}`}>
-              <p className={`text-sm mb-1 ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>Gov. Loans</p>
-              {typeof insights?.gov_loans?.available === 'boolean' ? (
-                <p className={`text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {insights.gov_loans.available ? 'Available' : 'Not Available'}
-                </p>
-              ) : (
-                <p className={`${isDark ? 'text-white/60' : 'text-gray-500'}`}>—</p>
-              )}
-              {insights?.gov_loans?.notes && (
-                <p className={`text-xs mt-1 ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>{insights.gov_loans.notes}</p>
-              )}
+              <p className={`text-sm mb-1 ${isDark ? 'text-[#ccc]' : 'text-gray-600'}`}>Vacancy Rate</p>
+              <p className={`text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Higher during school breaks (~20%)
+              </p>
             </div>
           </div>
         </>
@@ -988,23 +972,25 @@ function PropertyCard({ property, isHighlighted, onMouseEnter, onMouseLeave, onM
           }`} />
         )}
         <img 
-          src={property.images[currentImageIndex]}
+          src={(() => {
+            const images = property.images || [];
+            if (images.length === 0) return 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop';
+            const transformedUrl = images[currentImageIndex];
+            return transformedUrl?.replace('makao-648bd.firebasestorage.app', 'dwellmate-285e8.firebasestorage.app') || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop';
+          })()}
           alt={property.title}
           className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110"
           onLoad={() => setIsImageLoading(false)}
+          onError={(e) => {
+            e.target.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop';
+          }}
           style={{ opacity: isImageLoading ? 0 : 1 }}
         />
         
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         
-        {/* Status Badges */}
+        {/* Status Badges (Virtual Tour removed) */}
         <div className="absolute top-4 left-4 flex flex-wrap gap-2">
-          {property.virtual_tour && (
-            <span className="px-3 py-1.5 bg-[#51faaa]/90 backdrop-blur-sm text-[#0a0c19] rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-lg">
-              <Video className="w-3 h-3" />
-              Virtual Tour
-            </span>
-          )}
           {property.is_new && (
             <span className="px-3 py-1.5 bg-[#dbd5a4]/90 backdrop-blur-sm text-[#0a0c19] rounded-full text-xs font-semibold shadow-lg">
               New
@@ -1032,7 +1018,7 @@ function PropertyCard({ property, isHighlighted, onMouseEnter, onMouseLeave, onM
             onClick={(e) => {
               e.stopPropagation();
               if (!currentUser) {
-                navigate('/login', { state: { from: location } });
+                navigate('/desktop/login', { state: { from: location } });
                 return;
               }
               setIsSaved(!isSaved);
@@ -1557,17 +1543,6 @@ function FiltersSidebar({ filters, setFilters, showFilters, onClose }) {
             <label className="flex items-center">
               <input 
                 type="checkbox" 
-                checked={filters.hasVirtualTour}
-                onChange={(e) => handleFilterChange('hasVirtualTour', e.target.checked)}
-                className="mr-2 rounded border-gray-300 dark:border-gray-700 text-[#51faaa] focus:ring-[#51faaa]" 
-              />
-              <span className="text-sm text-gray-700 dark:text-gray-200 flex items-center gap-1">
-                <Video className="w-4 h-4" /> Virtual Tour Available
-              </span>
-            </label>
-            <label className="flex items-center">
-              <input 
-                type="checkbox" 
                 checked={filters.hasOpenHouse}
                 onChange={(e) => handleFilterChange('hasOpenHouse', e.target.checked)}
                 className="mr-2 rounded border-gray-300 dark:border-gray-700 text-[#51faaa] focus:ring-[#51faaa]" 
@@ -1683,7 +1658,6 @@ const QuickFilters = React.memo(({ filters, setFilters }) => {
   const quickFilters = [
     { label: 'New Listings', key: 'isNew', value: true, icon: Sparkles },
     { label: 'Price Reduced', key: 'isPriceReduced', value: true, icon: TrendingDown },
-    { label: 'Virtual Tour', key: 'hasVirtualTour', value: true, icon: Video },
     { label: 'Open House', key: 'hasOpenHouse', value: true, icon: Calendar },
     { label: 'Pet Friendly', key: 'petFriendly', value: true, icon: Heart },
     { label: 'Parking', key: 'hasParking', value: true, icon: Car }

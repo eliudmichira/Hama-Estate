@@ -340,7 +340,7 @@ function ModernLogin() {
         if (detectedUserType === 'agent' && !isVerifiedAgent) {
           setShowVerificationModal(true);
         } else {
-          navigate('/dashboard');
+          navigate('/desktop/dashboard');
         }
       }, 2000);
       
@@ -388,7 +388,7 @@ function ModernLogin() {
         if (detectedUserType === 'agent' && !isVerifiedAgent) {
           setShowVerificationModal(true);
         } else {
-          navigate('/dashboard');
+          navigate('/desktop/dashboard');
         }
       }, 2000);
       
@@ -436,7 +436,7 @@ function ModernLogin() {
              {/* Navigation */}
        <div className="fixed top-6 left-6 z-50">
          <button
-           onClick={() => navigate('/register')}
+           onClick={() => navigate('/desktop/register')}
            className={`px-8 py-4 font-semibold tracking-wide rounded-full transition-all duration-700 ease-out shadow-xl backdrop-blur-xl border ${
              isDark
                ? 'bg-gray-800/50 text-gray-200 border-gray-600/50 hover:bg-gray-700/50 hover:border-emerald-500/50 shadow-gray-900/20 hover:shadow-emerald-500/10'
@@ -655,7 +655,7 @@ function ModernLogin() {
                  isDark ? 'text-gray-400' : 'text-gray-600'
                }`}>Don't have an account?</p>
                <button
-                 onClick={() => navigate('/register')}
+                 onClick={() => navigate('/desktop/register')}
                  className={`text-base font-semibold tracking-wide transition-colors duration-700 ease-out disabled:opacity-50 ${
                    isDark ? 'text-gray-300 hover:text-emerald-400' : 'text-gray-700 hover:text-emerald-600'
                  }`}
@@ -673,11 +673,11 @@ function ModernLogin() {
         <AgentVerificationRequest
           onClose={() => {
             setShowVerificationModal(false);
-            navigate('/dashboard');
+            navigate('/desktop/dashboard');
           }}
           onSuccess={() => {
             setShowVerificationModal(false);
-            navigate('/dashboard');
+            navigate('/desktop/dashboard');
           }}
         />
       )}

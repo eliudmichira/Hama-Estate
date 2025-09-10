@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../context/AuthContext';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   Users, 
   Shield, 
@@ -40,9 +40,11 @@ import AnalyticsDashboard from './sections/AnalyticsDashboard';
 import AgentVerification from './sections/AgentVerification';
 import ContentManagement from './sections/ContentManagement';
 import SettingsPanel from './sections/SettingsPanel';
+import FloatingDashboardNav from '../../components/FloatingDashboardNav';
 
 const AdminPanel = () => {
   const { currentUser, getUserRole } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -102,7 +104,7 @@ const AdminPanel = () => {
   const userRole = getUserRole ? getUserRole() : 'user';
   // Check if user is admin
   if (!currentUser || userRole !== 'admin') {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/desktop/login" replace />;
   }
 
   const sections = [
@@ -164,7 +166,23 @@ const AdminPanel = () => {
   };
 
   return (
-    <div className="h-screen bg-gray-50 dark:bg-gray-900 pt-20 transition-colors duration-300 overflow-y-auto">
+    <div className="h-screen bg-gray-50 dark:bg-gray-900 pt-20 transition-colors duration-300 overflow-y-auto relative">
+      {/* Fixed Hama Estate logo - mirrored to profile button position */}
+      <div className="fixed top-6 left-6 z-50">
+        <button
+          onClick={() => navigate('/')}
+          className="group relative flex items-center gap-3 px-3 py-2 rounded-full shadow-elevation-4 border transition-all duration-300 overflow-hidden bg-gradient-to-r from-white/95 to-gray-50/95 border-white/20 text-gray-900 backdrop-blur-xl dark:from-gray-800/95 dark:to-gray-900/95 dark:border-gray-700/50 dark:text-white"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12" />
+          <div className="relative z-10">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#51faaa] to-[#4fd69c] p-1">
+              <img src="/logo.png" alt="Hama Estate" className="w-full h-full rounded-full object-cover" />
+            </div>
+          </div>
+        </button>
+      </div>
+      {/* Floating Dashboard Navigation */}
+      <FloatingDashboardNav variant="admin" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -228,15 +246,21 @@ const AdminPanel = () => {
                   Quick Actions
                 </h3>
                 <div className="space-y-2">
-                  <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                  <button 
+                    onClick={() => setActiveSection('content')}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
                     <Plus className="w-4 h-4" />
                     Add Featured Property
                   </button>
-                  <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                  <button 
+                    onClick={() => setActiveSection('analytics')}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
                     <AlertCircle className="w-4 h-4" />
                     View Reports
                   </button>
-                  <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                  <button 
+                    onClick={() => setActiveSection('settings')}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
                     <Bell className="w-4 h-4" />
                     Manage Notifications
                   </button>

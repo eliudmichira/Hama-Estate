@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { getPropertyImages, handleImageError } from '../utils/imageUtils';
 import VacancyTracker from './VacancyTracker';
 
 const EnhancedPropertyCard = ({ property, onFavoriteToggle, isFavorite, onVacancyUpdate }) => {
@@ -85,25 +86,27 @@ const EnhancedPropertyCard = ({ property, onFavoriteToggle, isFavorite, onVacanc
     }`}>
       {/* Image Section */}
       <div className="relative overflow-hidden h-48">
-        {property.images && property.images[imageIndex] ? (
-          <img
-            src={property.images[imageIndex]}
-            alt={property.title}
-            onLoad={handleImageLoad}
-            onError={handleImageError}
-            className={`w-full h-full object-cover transition-all duration-500 ${
-              isImageLoading ? 'blur-sm' : 'blur-0'
-            }`}
-          />
-        ) : (
-          <div className={`w-full h-full flex items-center justify-center ${
-            isDark ? 'bg-gray-700' : 'bg-gray-200'
-          }`}>
-            <div className={`w-12 h-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-              <Square className="w-full h-full" />
+        {(() => {
+          const propertyImages = getPropertyImages(property);
+          return propertyImages && propertyImages[imageIndex] ? (
+            <img
+              src={propertyImages[imageIndex]}
+              alt={property.title}
+              onLoad={handleImageLoad}
+              onError={(e) => handleImageError(e)}
+              className={`w-full h-full object-cover transition-all duration-500 ${
+                isImageLoading ? 'blur-sm' : 'blur-0'
+              }`}
+            />
+            <div className={`w-full h-full flex items-center justify-center ${
+              isDark ? 'bg-gray-700' : 'bg-gray-200'
+            }`}>
+              <div className={`w-12 h-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                <Square className="w-full h-full" />
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Vacancy Urgency Badge */}
         {vacancyUrgency && (

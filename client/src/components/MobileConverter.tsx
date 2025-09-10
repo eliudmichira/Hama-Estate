@@ -1326,7 +1326,7 @@ export const MobileConverter: React.FC<MobileConverterProps> = React.memo((props
   // Handle authentication check
   useEffect(() => {
     if (!user) {
-      navigate('/login');
+      navigate('/desktop/login');
     }
   }, [user, navigate]);
   
@@ -2156,7 +2156,7 @@ export const MobileConverter: React.FC<MobileConverterProps> = React.memo((props
         
         // Save that user wants to connect to Spotify and redirect to login
         sessionStorage.setItem('connect_after_login', 'spotify');
-        navigate('/login');
+        navigate('/desktop/login');
         return;
       }
       

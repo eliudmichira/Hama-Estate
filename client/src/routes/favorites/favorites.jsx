@@ -83,7 +83,7 @@ function Favorites() {
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Sign in to view favorites</h2>
           <p className="text-gray-600 dark:text-gray-300 mb-6">You need to be signed in to save and view your favorite properties.</p>
           <button 
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/desktop/login')}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Sign In

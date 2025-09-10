@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import UserDashboard from './UserDashboard';
 import AgentDashboard from './AgentDashboard';
 import { DashboardLoader } from '../../components/Preloader';
+import { Loader2 } from 'lucide-react';
+import FloatingDashboardNav from '../../components/FloatingDashboardNav';
 
 const DashboardRouter = () => {
   const { currentUser, getUserRole, isVerifiedAgent } = useAuth();
@@ -41,19 +43,24 @@ const DashboardRouter = () => {
 
   // Redirect to login if not authenticated
   if (!currentUser) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/desktop/login" replace />;
   }
 
   // Route based on user role
   switch (userRole) {
     case 'admin':
       // Redirect to admin panel
-      return <Navigate to="/admin" replace />;
+      return <Navigate to="/desktop/admin" replace />;
     
     case 'agent':
       // Check if user is a verified agent
       if (isVerifiedAgent) {
-        return <AgentDashboard />;
+        return (
+          <div className="relative">
+            <FloatingDashboardNav variant="agent" />
+            <AgentDashboard />
+          </div>
+        );
       } else {
         // Show agent verification request or pending status
         return (
@@ -82,7 +89,12 @@ const DashboardRouter = () => {
     case 'user':
     default:
       // Show regular user dashboard
-      return <UserDashboard />;
+      return (
+        <div className="relative">
+          <FloatingDashboardNav variant="user" />
+          <UserDashboard />
+        </div>
+      );
   }
 };
 

@@ -235,7 +235,7 @@ const MobileNavigation = () => {
                   {/* Menu Items */}
                   <div className="space-y-2">
                     <Link
-                      to="/dashboard"
+                      to="/desktop/dashboard"
                       className={`flex items-center space-x-3 p-3 rounded-xl transition-colors ${
                         isDark 
                           ? 'text-gray-300 hover:bg-gray-800' 
@@ -298,13 +298,13 @@ const MobileNavigation = () => {
               ) : (
                 <div className="space-y-4">
                   <Link
-                    to="/login"
+                    to="/desktop/login"
                     className="w-full py-3 bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#0a0c19] rounded-xl font-semibold text-center shadow-lg"
                   >
                     Login
                   </Link>
                   <Link
-                    to="/register"
+                    to="/desktop/register"
                     className={`w-full py-3 border-2 rounded-xl font-semibold text-center transition-colors ${
                       isDark 
                         ? 'border-gray-700 text-white hover:bg-gray-800' 

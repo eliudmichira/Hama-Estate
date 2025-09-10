@@ -121,9 +121,16 @@ export const AuthProvider = ({ children }) => {
           avatar: user.photoURL || "",
           createdAt: user.metadata.creationTime,
           provider: user.providerData[0]?.providerId || "email",
-          role: user.email === "admin@bogani.com" ? "admin" : "user",
+          role: (user.email === "admin@bogani.com" || user.email === "eliudsamwels7@gmail.com") ? "admin" : "user",
         };
         setCurrentUser(userData);
+
+        // Ensure user document exists in Firestore
+        try {
+          await saveUserDataToBackend(userData);
+        } catch (error) {
+          console.error('Error creating user document:', error);
+        }
 
         // Load user preferences from backend/localStorage
         loadUserPreferences(user.uid);
@@ -286,51 +293,26 @@ export const AuthProvider = ({ children }) => {
     }
   });
 
-  // Save user data to backend
+  // Save user data to Firestore
   const saveUserDataToBackend = async (userData) => {
-    // if (!currentUser) return;
-
     try {
-      // Simple check: if we're not on localhost, skip backend calls
-      if (
-        window.location.hostname !== "localhost" &&
-        window.location.hostname !== "127.0.0.1"
-      ) {
-        // In production, just use localStorage (data is already saved)
-        return;
-      }
-
-      // Only try backend on localhost
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout     
-
-      await registerUser(userData);
-
-      clearTimeout(timeoutId)
-
-      // const response = await fetch(
-      //   `http://localhost:8800/api/users/${currentUser.id}/preferences`,
-      //   {
-      //     method: "PUT",
-      //     headers: {
-      //       "Content-Type": "application/json",
-      //     },
-      //     body: JSON.stringify({
-      //       favorites,
-      //       savedSearches,
-      //       preferences: userPreferences,
-      //     }),
-      //     signal: controller.signal,
-      //   }
-      // );
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        // Silently fail - data is already saved to localStorage
-      }
+      // Import Firestore functions
+      const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+      const { db } = await import('../lib/firebase');
+      
+      // Create/update user document in Firestore
+      const userRef = doc(db, 'users', userData.id);
+      await setDoc(userRef, {
+        ...userData,
+        lastSeen: serverTimestamp(),
+        isOnline: true,
+        updatedAt: serverTimestamp()
+      }, { merge: true }); // Use merge to avoid overwriting existing data
+      
+      console.log('✅ User document created/updated in Firestore');
     } catch (error) {
-      // Silently fail - data is already saved to localStorage
+      console.error('❌ Error saving user to Firestore:', error);
+      // Don't throw - we don't want to break auth flow
     }
   };
 
@@ -373,7 +355,7 @@ export const AuthProvider = ({ children }) => {
             avatar: result.user.photoURL || "",
             createdAt: result.user.metadata.creationTime,
             provider: result.user.providerData[0]?.providerId || "email",
-            role: result.user.email === "admin@bogani.com" ? "admin" : "user",
+            role: (result.user.email === "admin@bogani.com" || result.user.email === "eliudsamwels7@gmail.com") ? "admin" : "user",
           };
           setCurrentUser(userData);
           saveUserDataToBackend(userData);
@@ -415,7 +397,7 @@ export const AuthProvider = ({ children }) => {
             avatar: result.user.photoURL || "",
             createdAt: result.user.metadata.creationTime,
             provider: result.user.providerData[0]?.providerId || "email",
-            role: result.user.email === "admin@bogani.com" ? "admin" : "user",
+            role: (result.user.email === "admin@bogani.com" || result.user.email === "eliudsamwels7@gmail.com") ? "admin" : "user",
           };
           setCurrentUser(userData);
         }
@@ -452,7 +434,7 @@ export const AuthProvider = ({ children }) => {
             avatar: result.user.photoURL || "",
             createdAt: result.user.metadata.creationTime,
             provider: result.user.providerData[0]?.providerId || "google.com",
-            role: result.user.email === "admin@bogani.com" ? "admin" : "user",
+            role: (result.user.email === "admin@bogani.com" || result.user.email === "eliudsamwels7@gmail.com") ? "admin" : "user",
           };
           setCurrentUser(userData);
         }
@@ -562,7 +544,7 @@ export const AuthProvider = ({ children }) => {
     if (currentUser.role === "admin") return "admin";
 
     // Check if user email matches admin email
-    if (currentUser.email === "eddmichira@gmail.com") {
+    if (currentUser.email === "eddmichira@gmail.com" || currentUser.email === "eliudsamwels7@gmail.com") {
       return "admin";
     }
 
@@ -613,10 +595,13 @@ export const AuthProvider = ({ children }) => {
         ...agentData,
         userId: currentUser.id,
         email: currentUser.email,
-        name: currentUser.name || currentUser.username
+        name: currentUser.name || currentUser.username || agentData.fullName
       });
       
-      setVerificationStatus('pending');
+      if (result.success) {
+        setVerificationStatus('pending');
+      }
+      
       return result;
     } catch (error) {
       console.error('Error requesting agent verification:', error);
@@ -632,7 +617,7 @@ export const AuthProvider = ({ children }) => {
 
       // Check if user email matches admin email
       if (
-        currentUser.email === "admin@bogani.com" &&
+        (currentUser.email === "admin@bogani.com" || currentUser.email === "eliudsamwels7@gmail.com") &&
         currentUser.role !== "admin"
       ) {
         newRole = "admin";

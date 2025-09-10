@@ -33,7 +33,7 @@ const SettingsPanel = () => {
     general: {
       siteName: 'Hama Estate',
       siteDescription: 'Your trusted real estate platform in Kenya',
-      siteUrl: 'https://makao-648bd.web.app',
+      siteUrl: 'https://dwellmate-285e8.web.app',
       contactEmail: 'admin@bogani.com',
       contactPhone: '+254 700 123 456',
       timezone: 'Africa/Nairobi',
