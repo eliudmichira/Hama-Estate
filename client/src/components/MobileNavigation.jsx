@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, 
   Search, 
@@ -11,7 +12,8 @@ import {
   Heart, 
   MessageCircle,
   Settings,
-  LogOut
+  LogOut,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -67,9 +69,16 @@ const MobileNavigation = () => {
   const navItems = [
     { icon: Home, label: 'Home', path: '/' },
     { icon: Search, label: 'Search', path: '/properties' },
-    { icon: Plus, label: 'Add', path: '/properties/add' },
+    { icon: Heart, label: 'Favorites', path: '/favorites' },
     { icon: User, label: 'Profile', path: '/dashboard' }
   ];
+
+  // Haptic feedback function
+  const hapticLight = () => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(10);
+    }
+  };
 
   const isActive = (path) => {
     if (path === '/') {
@@ -83,28 +92,195 @@ const MobileNavigation = () => {
   return (
     <>
       {/* Mobile Bottom Navigation */}
-      <div className={`fixed bottom-0 left-0 right-0 z-50 lg:hidden ${
-        isDark ? 'bg-gray-900 border-t border-gray-700' : 'bg-white border-t border-gray-200'
-      }`}>
-        <div className="flex items-center justify-around px-2 py-2">
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl transition-all duration-200 ${
-                isActive(item.path)
-                  ? 'bg-[#51faaa] text-[#0a0c19] shadow-lg'
-                  : isDark
-                    ? 'text-gray-400 hover:text-white hover:bg-gray-800'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
+      <motion.nav
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-gray-900/95 backdrop-blur-xl border-t border-gray-800 pb-safe"
+      >
+        <div className="flex items-center justify-between px-2 py-2">
+          {/* Left side nav items */}
+          <div className="flex items-center justify-start space-x-2 sm:space-x-3 flex-1 min-w-0">
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              <item.icon className="w-5 h-5 mb-1" />
-              <span className="text-xs font-medium">{item.label}</span>
-            </Link>
-          ))}
+              <Link
+                to={navItems[0].path}
+                onClick={hapticLight}
+                className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl transition-all duration-200 relative ${
+                  isActive(navItems[0].path)
+                    ? 'bg-gradient-to-br from-[#51faaa] to-[#dbd5a4] text-[#0a0c19] shadow-lg shadow-[#51faaa]/30'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                }`}
+              >
+                <navItems[0].icon className="w-6 h-6" />
+                <span className="text-xs font-medium mt-1">{navItems[0].label}</span>
+              </Link>
+            </motion.div>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Link
+                to={navItems[1].path}
+                onClick={hapticLight}
+                className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl transition-all duration-200 relative ${
+                  isActive(navItems[1].path)
+                    ? 'bg-gradient-to-br from-[#51faaa] to-[#dbd5a4] text-[#0a0c19] shadow-lg shadow-[#51faaa]/30'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                }`}
+              >
+                <navItems[1].icon className="w-6 h-6" />
+                <span className="text-xs font-medium mt-1">{navItems[1].label}</span>
+              </Link>
+            </motion.div>
+          </div>
+          
+          {/* Center Action Button */}
+          <div className="flex flex-col items-center justify-center gap-1 mx-2 sm:mx-4">
+            <motion.button
+              onClick={() => {
+                hapticLight();
+                navigate('/properties/add');
+              }}
+              className="relative w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center group focus:outline-none"
+              aria-label="Add Property"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              {/* Animated gradient background */}
+              <motion.div
+                className="absolute inset-0 rounded-full"
+                animate={{
+                  background: [
+                    "linear-gradient(45deg, #51faaa, #dbd5a4, #51faaa, #dbd5a4)",
+                    "linear-gradient(90deg, #dbd5a4, #51faaa, #dbd5a4, #51faaa)",
+                    "linear-gradient(135deg, #51faaa, #dbd5a4, #51faaa, #dbd5a4)",
+                    "linear-gradient(180deg, #dbd5a4, #51faaa, #dbd5a4, #51faaa)",
+                    "linear-gradient(225deg, #51faaa, #dbd5a4, #51faaa, #dbd5a4)",
+                    "linear-gradient(270deg, #dbd5a4, #51faaa, #dbd5a4, #51faaa)",
+                    "linear-gradient(315deg, #51faaa, #dbd5a4, #51faaa, #dbd5a4)",
+                    "linear-gradient(360deg, #dbd5a4, #51faaa, #dbd5a4, #51faaa)"
+                  ]
+                }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: "linear"
+                }}
+              />
+              
+              {/* Animated ring border */}
+              <motion.div
+                className="absolute -inset-1 rounded-full pointer-events-none"
+                animate={{
+                  rotate: [0, 360]
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "linear"
+                }}
+                style={{
+                  background: "conic-gradient(from 0deg, #51faaa, #dbd5a4, #51faaa)",
+                  mask: "radial-gradient(circle, transparent 60%, black 70%)",
+                  WebkitMask: "radial-gradient(circle, transparent 60%, black 70%)"
+                }}
+              />
+              
+              {/* Halo effect - outer glow */}
+              <motion.div
+                className="absolute -inset-2 rounded-full pointer-events-none opacity-80"
+                animate={{
+                  boxShadow: [
+                    "0 0 15px rgba(81, 250, 170, 0.5), 0 0 30px rgba(219, 213, 164, 0.35), 0 0 45px rgba(81, 250, 170, 0.25)",
+                    "0 0 18px rgba(219, 213, 164, 0.5), 0 0 36px rgba(81, 250, 170, 0.35), 0 0 54px rgba(219, 213, 164, 0.25)",
+                    "0 0 15px rgba(81, 250, 170, 0.5), 0 0 30px rgba(219, 213, 164, 0.35), 0 0 45px rgba(81, 250, 170, 0.25)"
+                  ]
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              />
+              
+              {/* Subtle inner glow */}
+              <div
+                className="absolute inset-1 rounded-full"
+                style={{
+                  background: "radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 50%, transparent 100%)"
+                }}
+              />
+              
+              {/* Icon */}
+              <div className="relative z-10">
+                <Plus className="w-8 h-8 text-white drop-shadow-lg" />
+              </div>
+            </motion.button>
+            
+            {/* Subtle label */}
+            <motion.div
+              className="text-xs text-gray-500 dark:text-gray-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              initial={{ y: 5, opacity: 0 }}
+              whileHover={{ y: 0, opacity: 1 }}
+            >
+              Add Property
+            </motion.div>
+            
+            {/* Tooltip for better UX */}
+            <motion.div
+              className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-3 py-2 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-300"
+              initial={{ y: 10, opacity: 0 }}
+              whileHover={{ y: 0, opacity: 1 }}
+            >
+              <div className="flex items-center gap-2">
+                <Plus className="w-3 h-3" />
+                <span>Add Property</span>
+              </div>
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+            </motion.div>
+          </div>
+          
+          {/* Right side nav items */}
+          <div className="flex items-center justify-end space-x-2 sm:space-x-3 flex-1 min-w-0">
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Link
+                to={navItems[2].path}
+                onClick={hapticLight}
+                className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl transition-all duration-200 relative ${
+                  isActive(navItems[2].path)
+                    ? 'bg-gradient-to-br from-[#51faaa] to-[#dbd5a4] text-[#0a0c19] shadow-lg shadow-[#51faaa]/30'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                }`}
+              >
+                <navItems[2].icon className="w-6 h-6" />
+                <span className="text-xs font-medium mt-1">{navItems[2].label}</span>
+              </Link>
+            </motion.div>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Link
+                to={navItems[3].path}
+                onClick={hapticLight}
+                className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl transition-all duration-200 relative ${
+                  isActive(navItems[3].path)
+                    ? 'bg-gradient-to-br from-[#51faaa] to-[#dbd5a4] text-[#0a0c19] shadow-lg shadow-[#51faaa]/30'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                }`}
+              >
+                <navItems[3].icon className="w-6 h-6" />
+                <span className="text-xs font-medium mt-1">{navItems[3].label}</span>
+              </Link>
+            </motion.div>
+          </div>
         </div>
-      </div>
+      </motion.nav>
 
       {/* Mobile Search Overlay */}
       {isSearchOpen && (
@@ -320,13 +496,6 @@ const MobileNavigation = () => {
         </div>
       )}
 
-      {/* Floating Action Button for Search */}
-      <button
-        onClick={() => setIsSearchOpen(true)}
-        className="fixed bottom-20 right-4 z-40 lg:hidden w-14 h-14 bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] rounded-full shadow-lg flex items-center justify-center"
-      >
-        <Search className="w-6 h-6 text-[#0a0c19]" />
-      </button>
     </>
   );
 };

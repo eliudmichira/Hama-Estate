@@ -423,7 +423,16 @@ const EnhancedMobilePropertyCard = ({
             transition={{ delay: 0.3 }}
           >
             <MapPin className="w-4 h-4" />
-            <span className="text-sm">{property.location}</span>
+            <span className="text-sm">
+              {(() => {
+                if (typeof property.location === 'string') {
+                  return property.location;
+                } else if (property.location && typeof property.location === 'object') {
+                  return property.location.address || property.location.city || property.location.state || '';
+                }
+                return property.address || 'Location not specified';
+              })()}
+            </span>
           </motion.div>
         </div>
 

@@ -6,25 +6,34 @@ const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
 function Map({ propertyData }) {
   const [mapUrl, setMapUrl] = useState("");
+  const [validProperties, setValidProperties] = useState([]);
 
   useEffect(() => {
     if (!propertyData || propertyData.length === 0) {
       setMapUrl("");
+      setValidProperties([]);
       return;
     }
 
-    // Center the map: average of all property coordinates
-    let center = [39.8283, -98.5795]; // Default: center of US
-    if (propertyData.length === 1) {
-      center = [propertyData[0].latitude, propertyData[0].longitude];
-    } else if (propertyData.length > 1) {
-      const avgLat = propertyData.reduce((sum, p) => sum + p.latitude, 0) / propertyData.length;
-      const avgLng = propertyData.reduce((sum, p) => sum + p.longitude, 0) / propertyData.length;
+    // Filter valid properties first
+    const valid = propertyData.filter(p => 
+      Number.isFinite(p.latitude) && Number.isFinite(p.longitude) &&
+      p.latitude >= -5 && p.latitude <= 5 && p.longitude >= 33 && p.longitude <= 42
+    );
+    setValidProperties(valid);
+
+    // Center the map: average of valid property coordinates
+    let center = [-1.2921, 36.8219]; // Default: center of Nairobi, Kenya
+    if (valid.length === 1) {
+      center = [valid[0].latitude, valid[0].longitude];
+    } else if (valid.length > 1) {
+      const avgLat = valid.reduce((sum, p) => sum + p.latitude, 0) / valid.length;
+      const avgLng = valid.reduce((sum, p) => sum + p.longitude, 0) / valid.length;
       center = [avgLat, avgLng];
     }
 
-    // Markers for each property
-    const markers = propertyData
+    // Markers for each valid property
+    const markers = valid
       .map(p => `markers=color:red%7C${p.latitude},${p.longitude}`)
       .join("&");
 
@@ -54,7 +63,7 @@ function Map({ propertyData }) {
         <div className="map-overlay">
           <div className="map-info">
             <h3>Property Locations</h3>
-            <p>{propertyData.length} properties found</p>
+            <p>{validProperties.length} properties found</p>
           </div>
         </div>
       </div>

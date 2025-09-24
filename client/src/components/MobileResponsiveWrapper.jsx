@@ -1,6 +1,8 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import HomeMobile from '../../pages/HomeMobile';
+import HomeMobileContent from '../../pages/HomeMobileContent';
+import MobileLayoutWrapper from './MobileLayoutWrapper';
 import { useMobileDetection } from '../hooks/useMobileDetection';
 
 const MobileResponsiveWrapper = () => {
@@ -23,9 +25,13 @@ const MobileResponsiveWrapper = () => {
       return null;
     }
     
-    // Show mobile home for root path
+    // Show mobile home for root path with navigation wrapper
     if (location.pathname === '/') {
-      return <HomeMobile />;
+      return (
+        <MobileLayoutWrapper title="Hama Estate" subtitle="Find Your Perfect Home">
+          <HomeMobileContent />
+        </MobileLayoutWrapper>
+      );
     }
     
     // For other paths, redirect to mobile home

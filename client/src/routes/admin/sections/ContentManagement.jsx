@@ -286,7 +286,16 @@ const ContentManagement = () => {
               <div className="space-y-3">
                 <div>
                   <h4 className="font-semibold text-gray-900 dark:text-white">{property.title}</h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{property.location}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {(() => {
+                      if (typeof property.location === 'string') {
+                        return property.location;
+                      } else if (property.location && typeof property.location === 'object') {
+                        return property.location.address || property.location.city || property.location.state || '';
+                      }
+                      return property.address || 'Location not specified';
+                    })()}
+                  </p>
                   <p className="text-lg font-bold text-green-600">Ksh {property.price.toLocaleString()}</p>
                 </div>
 
@@ -418,7 +427,14 @@ const ContentManagement = () => {
                           {property.title}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {property.location}
+                          {(() => {
+                            if (typeof property.location === 'string') {
+                              return property.location;
+                            } else if (property.location && typeof property.location === 'object') {
+                              return property.location.address || property.location.city || property.location.state || '';
+                            }
+                            return property.address || 'Location not specified';
+                          })()}
                         </div>
                         <div className="text-sm font-semibold text-green-600">
                           Ksh {property.price.toLocaleString()}

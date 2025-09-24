@@ -292,7 +292,36 @@ const PropertyCard = ({
 
               {/* Title and Location */}
               <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-1">
-                {property.title || property.address}
+                {(() => {
+                  if (typeof property.title === 'string' && property.title.trim()) {
+                    return property.title;
+                  }
+                  // Fallback to address parts if title missing or not a string
+                  const loc = property.address ?? property.location;
+                  if (typeof loc === 'string') return loc;
+                  if (loc && typeof loc === 'object') {
+                    const parts = [];
+                    const addr = typeof loc.address === 'string'
+                      ? loc.address
+                      : (loc.address && typeof loc.address === 'object'
+                          ? [loc.address.street, loc.address.line, loc.address.name]
+                              .filter(Boolean)
+                              .join(', ')
+                          : undefined);
+                    const city = typeof loc.city === 'string' ? loc.city : undefined;
+                    const state = typeof loc.state === 'string' ? loc.state : undefined;
+                    const zip = typeof loc.zipCode === 'string' || typeof loc.zipCode === 'number'
+                      ? String(loc.zipCode)
+                      : undefined;
+                    if (addr) parts.push(addr);
+                    if (city) parts.push(city);
+                    if (state) parts.push(state);
+                    if (zip) parts.push(zip);
+                    const text = parts.join(', ');
+                    return text || 'Property';
+                  }
+                  return 'Property';
+                })()}
               </h4>
               <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400 mb-4">
                 <MapPin className="w-4 h-4 flex-shrink-0" />
@@ -559,11 +588,28 @@ const PropertyCard = ({
             <span className="text-sm line-clamp-1">
               {(() => {
                 // Safely extract location string from object or use as string
-                if (property.address) return property.address;
-                if (typeof property.location === 'string') {
-                  return property.location;
-                } else if (property.location && typeof property.location === 'object') {
-                  return property.location.address || property.location.city || property.location.state || '';
+                // Prefer address string, but support nested object shapes
+                const loc = property.address ?? property.location;
+                if (typeof loc === 'string') return loc;
+                if (loc && typeof loc === 'object') {
+                  const parts = [];
+                  const addr = typeof loc.address === 'string'
+                    ? loc.address
+                    : (loc.address && typeof loc.address === 'object'
+                        ? [loc.address.street, loc.address.line, loc.address.name]
+                            .filter(Boolean)
+                            .join(', ')
+                        : undefined);
+                  const city = typeof loc.city === 'string' ? loc.city : undefined;
+                  const state = typeof loc.state === 'string' ? loc.state : undefined;
+                  const zip = typeof loc.zipCode === 'string' || typeof loc.zipCode === 'number'
+                    ? String(loc.zipCode)
+                    : undefined;
+                  if (addr) parts.push(addr);
+                  if (city) parts.push(city);
+                  if (state) parts.push(state);
+                  if (zip) parts.push(zip);
+                  return parts.join(', ') || 'Location not specified';
                 }
                 return 'Location not specified';
               })()}

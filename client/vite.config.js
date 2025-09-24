@@ -8,10 +8,15 @@ export default defineConfig({
     react()
   ],
   resolve: {
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
     alias: {
       // Force a single React instance
       react: path.resolve(__dirname, 'node_modules/react'),
-      'react-dom': path.resolve(__dirname, 'node_modules/react-dom')
+      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+      'react/jsx-runtime': path.resolve(
+        __dirname,
+        'node_modules/react/jsx-runtime.js'
+      )
     }
   },
   server: {
@@ -70,6 +75,6 @@ export default defineConfig({
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom'],
     // Ensure react is deduped across dependencies
-    dedupe: ['react', 'react-dom']
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime']
   }
 })

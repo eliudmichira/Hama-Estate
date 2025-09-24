@@ -141,8 +141,28 @@ export const GoogleLevelPropertyCard = ({ property, index = 0, onClick }) => {
               // Safely extract location string from object or use as string
               if (typeof location === 'string') {
                 return location;
-              } else if (location && typeof location === 'object') {
-                return location.address || location.city || location.state || '';
+              }
+              if (location && typeof location === 'object') {
+                const parts = [];
+                // Some feeds provide nested location objects; guard everything
+                const addr = typeof location.address === 'string'
+                  ? location.address
+                  : (location.address && typeof location.address === 'object'
+                      ? [location.address.street, location.address.line, location.address.name]
+                          .filter(Boolean)
+                          .join(', ')
+                      : undefined);
+                const city = typeof location.city === 'string' ? location.city : undefined;
+                const state = typeof location.state === 'string' ? location.state : undefined;
+                const zip = typeof location.zipCode === 'string' || typeof location.zipCode === 'number'
+                  ? String(location.zipCode)
+                  : undefined;
+                if (addr) parts.push(addr);
+                if (city) parts.push(city);
+                if (state) parts.push(state);
+                if (zip) parts.push(zip);
+                const text = parts.join(', ');
+                return text || '';
               }
               return '';
             })()}

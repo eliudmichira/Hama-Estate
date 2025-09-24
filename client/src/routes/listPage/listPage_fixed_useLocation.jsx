@@ -1265,6 +1265,17 @@ function EnhancedMap({ propertyData, highlightedProperty, onMarkerHover, onPrope
                           const lat = parseFloat(property.latitude);
                           const lng = parseFloat(property.longitude);
                           
+                          // Debug logging for coordinate issues
+                          if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                            console.warn('Invalid coordinates for property:', property.id, { lat, lng });
+                            return null;
+                          }
+                          
+                          // Log when coordinates have been offset for duplicate handling
+                          if (property.originalLatitude && property.originalLongitude) {
+                            console.log(`Property ${property.id} coordinates offset from original position for visibility`);
+                          }
+                          
                     return (
                       <Marker
                         key={property.id || property._id || `${lat},${lng}`}
@@ -2118,10 +2129,18 @@ export default function MapView() {
     const city = p.city || p.location?.city || '';
     const state = p.state || p.location?.state || '';
     const zip = p.zipCode || p.location?.zipCode || '';
+    
+    // Build more specific address for better geocoding
     if (addr) parts.push(addr);
     if (city) parts.push(city);
     if (state) parts.push(state);
     if (zip) parts.push(zip);
+    
+    // Always add Kenya for better geocoding accuracy
+    if (!parts.includes('Kenya')) {
+      parts.push('Kenya');
+    }
+    
     return parts.join(', ');
   };
 
@@ -2131,9 +2150,17 @@ export default function MapView() {
     const cached = geocodeCacheRef.current?.[cacheKey];
     if (cached) return cached;
     try {
-      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${GOOGLE_MAPS_API_KEY}`;
+      // Use more specific geocoding parameters for better accuracy
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&region=ke&components=country:KE&key=${GOOGLE_MAPS_API_KEY}`;
       const res = await fetch(url);
       const data = await res.json();
+      
+      console.log(`Geocoding response for "${address}":`, {
+        status: data.status,
+        resultsCount: data.results?.length || 0,
+        firstResult: data.results?.[0]?.formatted_address
+      });
+      
       if (data.status === 'OK' && data.results?.[0]?.geometry?.location) {
         const loc = data.results[0].geometry.location;
         geocodeCacheRef.current = geocodeCacheRef.current || {};
@@ -2141,7 +2168,9 @@ export default function MapView() {
         persistGeocodeCache();
         return { lat: loc.lat, lng: loc.lng };
       }
-    } catch (_) {}
+    } catch (error) {
+      console.error('Geocoding error:', error);
+    }
     return null;
   };
 
@@ -2179,19 +2208,60 @@ export default function MapView() {
           let lat = typeof rawLat === 'string' ? parseFloat(rawLat) : rawLat;
           let lng = typeof rawLng === 'string' ? parseFloat(rawLng) : rawLng;
 
-          if (!(Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0)) {
+          // Debug logging to see what coordinates we're working with
+          console.log(`Property ${property.id || index}:`, {
+            title: property.title,
+            rawLat, rawLng,
+            parsedLat: lat, parsedLng: lng,
+            address: property.address,
+            city: property.city,
+            hasStoredCoords: !!(rawLat && rawLng && rawLat !== 0 && rawLng !== 0)
+          });
+
+          // Validate coordinate ranges (Kenya is roughly -4.7 to 4.6 lat, 33.9 to 41.9 lng)
+          const isValidKenyanCoordinate = (lat, lng) => {
+            return Number.isFinite(lat) && Number.isFinite(lng) && 
+                   lat >= -5 && lat <= 5 && lng >= 33 && lng <= 42 &&
+                   lat !== 0 && lng !== 0; // Exclude 0,0 coordinates
+          };
+
+          // Only geocode if we don't have valid stored coordinates
+          if (!isValidKenyanCoordinate(lat, lng)) {
+            console.log(`Property ${property.id || index}: No valid stored coordinates, attempting geocoding...`);
+            
+            // Try multiple geocoding strategies for better precision
+            let geo = null;
+            
+            // Strategy 1: Try with full address
             const addrStr = buildAddressString(property);
-            const geo = await geocodeAddress(addrStr);
-            if (geo) {
+            console.log(`Geocoding address: "${addrStr}"`);
+            geo = await geocodeAddress(addrStr);
+            
+            // Strategy 2: If that fails, try with just city + Kenya for more general location
+            if (!geo && property.city) {
+              const cityStr = `${property.city}, Kenya`;
+              console.log(`Trying city-only geocoding: "${cityStr}"`);
+              geo = await geocodeAddress(cityStr);
+            }
+            
+            if (geo && isValidKenyanCoordinate(geo.lat, geo.lng)) {
+              console.log(`Geocoding successful: ${geo.lat}, ${geo.lng}`);
               lat = geo.lat;
               lng = geo.lng;
+            } else {
+              console.log(`Geocoding failed for property ${property.id || index}`);
             }
+          } else {
+            console.log(`Property ${property.id || index}: Using stored coordinates ${lat}, ${lng}`);
           }
 
-          if (!(Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0)) {
-            // Fallback near Nairobi with tiny offset to avoid overlapping
-            lat = -1.2921 + (index * 0.005);
-            lng = 36.8219 + (index * 0.005);
+          if (!isValidKenyanCoordinate(lat, lng)) {
+            // Fallback near Nairobi with larger offset to avoid overlapping
+            // Use a more spread out pattern to ensure visible separation
+            const offsetLat = (index % 10) * 0.02; // 0.02 degrees ≈ 2.2km
+            const offsetLng = Math.floor(index / 10) * 0.02;
+            lat = -1.2921 + offsetLat;
+            lng = 36.8219 + offsetLng;
           }
 
           return {
@@ -2232,9 +2302,54 @@ export default function MapView() {
             estate: property.estate || ['Kileleshwa', 'Umoja', 'Runda', 'Westlands', 'Kilimani', 'Lavington', 'Karen', 'South B', 'South C', 'Buruburu', 'Donholm', 'Embakasi', 'Ruiru', 'Thika'][Math.floor(Math.random() * 14)]
           };
         }));
+
+        // Handle duplicate coordinates by adding small offsets
+        const coordinateMap = {}; // Use plain object instead of Map constructor
+        const finalProperties = processedProperties.map((property, index) => {
+          const lat = property.latitude;
+          const lng = property.longitude;
+          const coordKey = `${lat.toFixed(6)},${lng.toFixed(6)}`; // Use 6 decimal places for grouping
+          
+          if (coordinateMap[coordKey]) {
+            // This coordinate already exists, add a small offset
+            const existingCount = coordinateMap[coordKey];
+            coordinateMap[coordKey] = existingCount + 1;
+            
+            // Create a small circular offset pattern
+            const angle = (existingCount * 2 * Math.PI) / 8; // 8 positions around a circle
+            const offsetDistance = 0.0005; // Very small offset (about 50 meters)
+            const offsetLat = lat + (offsetDistance * Math.cos(angle));
+            const offsetLng = lng + (offsetDistance * Math.sin(angle));
+            
+            return {
+              ...property,
+              latitude: offsetLat,
+              longitude: offsetLng,
+              originalLatitude: lat, // Keep original for reference
+              originalLongitude: lng
+            };
+          } else {
+            coordinateMap[coordKey] = 1;
+            return property;
+          }
+        });
         
-        console.log('Processed properties:', processedProperties);
-        setPropertyData(processedProperties);
+        // Log summary of coordinate sources
+        const storedCoords = finalProperties.filter(p => !p.originalLatitude).length;
+        const geocodedCoords = finalProperties.filter(p => p.originalLatitude).length;
+        const fallbackCoords = finalProperties.filter(p => 
+          p.latitude >= -1.3 && p.latitude <= -1.2 && p.longitude >= 36.8 && p.longitude <= 36.9
+        ).length;
+        
+        console.log('Coordinate Summary:', {
+          total: finalProperties.length,
+          storedCoordinates: storedCoords,
+          geocodedCoordinates: geocodedCoords,
+          fallbackCoordinates: fallbackCoords
+        });
+        
+        console.log('Processed properties:', finalProperties);
+        setPropertyData(finalProperties);
         } 
          catch (error) {
         console.error('Error loading properties:', error);
@@ -2464,66 +2579,7 @@ export default function MapView() {
                 />
               </div>
               
-              {/* Enhanced View Toggle next to search bar */}
-              <motion.div 
-                className="flex items-center bg-gray-100/80 dark:bg-gray-700/80 rounded-full p-1 shadow-lg backdrop-blur-sm flex-shrink-0 border border-gray-200/50 dark:border-gray-600/50"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, delay: 0.4 }}
-              >
-                <motion.button
-                  onClick={() => setViewMode('grid')}
-                  className={`px-3 py-1.5 rounded-full transition-all duration-300 flex items-center gap-1.5 relative overflow-hidden ${
-                    viewMode === 'grid'
-                      ? 'bg-white dark:bg-gray-600 shadow-md text-[#51faaa] dark:text-[#51faaa] font-medium'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                  }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  {viewMode === 'grid' && (
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-[#51faaa]/20 to-[#dbd5a4]/20"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  )}
-                  <motion.div
-                    animate={{ rotate: viewMode === 'grid' ? 0 : 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Grid className="w-3.5 h-3.5 relative z-10" />
-                  </motion.div>
-                  <span className="text-xs hidden sm:inline relative z-10">Grid</span>
-                </motion.button>
-                <motion.button
-                  onClick={() => setViewMode('list')}
-                  className={`px-3 py-1.5 rounded-full transition-all duration-300 flex items-center gap-1.5 relative overflow-hidden ${
-                    viewMode === 'list'
-                      ? 'bg-white dark:bg-gray-600 shadow-md text-[#51faaa] dark:text-[#51faaa] font-medium'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                  }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  {viewMode === 'list' && (
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-[#51faaa]/20 to-[#dbd5a4]/20"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  )}
-                  <motion.div
-                    animate={{ rotate: viewMode === 'list' ? 0 : 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <List className="w-3.5 h-3.5 relative z-10" />
-                  </motion.div>
-                  <span className="text-xs hidden sm:inline relative z-10">List</span>
-                </motion.button>
-              </motion.div>
+              {/* Enhanced View Toggle moved to listings header */}
             </div>
             
             {/* Enhanced Center - Brand Logo */}
@@ -2810,7 +2866,36 @@ export default function MapView() {
                 )}
               </button>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400 hidden sm:inline">{viewMode === 'grid' ? 'Grid View' : 'List View'}</span>
+                <div className="flex items-center bg-gray-100/80 dark:bg-gray-700/80 rounded-full p-1 shadow-lg backdrop-blur-sm flex-shrink-0 border border-gray-200/50 dark:border-gray-600/50">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`px-3 py-1.5 rounded-full transition-all duration-300 flex items-center gap-1.5 relative overflow-hidden ${
+                      viewMode === 'grid'
+                        ? 'bg-white dark:bg-gray-600 shadow-md text-[#51faaa] dark:text-[#51faaa] font-medium'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    {viewMode === 'grid' && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-[#51faaa]/20 to-[#dbd5a4]/20" />
+                    )}
+                    <Grid className="w-3.5 h-3.5 relative z-10" />
+                    <span className="text-xs hidden sm:inline relative z-10">Grid</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`px-3 py-1.5 rounded-full transition-all duration-300 flex items-center gap-1.5 relative overflow-hidden ${
+                      viewMode === 'list'
+                        ? 'bg-white dark:bg-gray-600 shadow-md text-[#51faaa] dark:text-[#51faaa] font-medium'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    {viewMode === 'list' && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-[#51faaa]/20 to-[#dbd5a4]/20" />
+                    )}
+                    <List className="w-3.5 h-3.5 relative z-10" />
+                    <span className="text-xs hidden sm:inline relative z-10">List</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

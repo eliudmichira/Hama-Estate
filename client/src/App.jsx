@@ -10,6 +10,7 @@ const RentaKenyaPage = lazy(() => import('./routes/rentakenya/PropertyOwnerPorta
 const Contact = lazy(() => import('./routes/contact/contact'));
 const Agents = lazy(() => import('./routes/agents/Agents'));
 const MobileResponsiveWrapper = lazy(() => import('./components/MobileResponsiveWrapper'));
+const MobileLayoutWrapper = lazy(() => import('./components/MobileLayoutWrapper'));
 
 // Legal pages
 const Privacy = lazy(() => import('../pages/Privacy'));
@@ -22,12 +23,17 @@ const MobilePropertyDetails = lazy(() => import('./routes/propertyDetails/proper
 const MobileAuth = lazy(() => import('./routes/login/login'));
 const MobileDashboard = lazy(() => import('./routes/dashboard/dashboard'));
 
+// New mobile-optimized pages
+const MobilePropertyList = lazy(() => import('./routes/mobile/MobilePropertyList'));
+const MobilePropertyDetailsNew = lazy(() => import('./routes/mobile/MobilePropertyDetails'));
+
 // Desktop pages
 const PropertyDetails = lazy(() => import('./routes/propertyDetails/propertyDetails'));
 const ListPage = lazy(() => import('./routes/listPage/listPage_fixed_useLocation'));
 const Login = lazy(() => import('./routes/login/login'));
 const Register = lazy(() => import('./routes/register/register'));
 const Dashboard = lazy(() => import('./routes/dashboard/dashboard'));
+const ScrapingDashboard = lazy(() => import('./pages/ScrapingDashboard'));
 const AdminPanel = lazy(() => import('./routes/admin/AdminPanel'));
 const AgentVerificationPage = lazy(() => import('./routes/agent-verification/AgentVerificationPage'));
 const AddProperty = lazy(() => import('./routes/properties/AddProperty'));
@@ -41,9 +47,17 @@ const FinancialReports = lazy(() => import('./routes/trial-dashboard/FinancialRe
 const DocumentStorage = lazy(() => import('./routes/trial-dashboard/DocumentStorage'));
 const PaymentRecording = lazy(() => import('./routes/trial-dashboard/PaymentRecording'));
 
+// Messages page
+const Messages = lazy(() => import('./routes/messages/Messages'));
+
 // Tenant Portal
-const TenantLogin = lazy(() => import('./routes/tenant-portal/TenantLogin'));
-const TenantDashboard = lazy(() => import('./routes/tenant-portal/TenantDashboard'));
+const TenantLogin = lazy(() => import('./routes/tenant-portal/TenantLoginSimple'));
+const TenantDashboardLayout = lazy(() => import('./routes/tenant-portal/TenantDashboardLayout'));
+const TenantOverview = lazy(() => import('./routes/tenant-portal/overview/Overview'));
+const TenantPayments = lazy(() => import('./routes/tenant-portal/payments/Payments'));
+const TenantMaintenance = lazy(() => import('./routes/tenant-portal/maintenance/Maintenance'));
+const TenantReceipts = lazy(() => import('./routes/tenant-portal/receipts/Receipts'));
+const TenantSupport = lazy(() => import('./routes/tenant-portal/support/Support'));
 
 function App() {
   // Test Firebase connection on app start
@@ -75,11 +89,47 @@ function App() {
             {/* Mobile route - no layout, no footer */}
             <Route path="/" element={<MobileResponsiveWrapper />} />
             
-            {/* Mobile-specific routes */}
-            <Route path="/search" element={<MobilePropertySearch />} />
-            <Route path="/property/:id" element={<MobilePropertyDetails />} />
-            <Route path="/auth" element={<MobileAuth />} />
-            <Route path="/dashboard" element={<MobileDashboard />} />
+            {/* Mobile-specific routes with navigation wrapper */}
+            <Route path="/search" element={
+              <MobileLayoutWrapper title="Search Properties" subtitle="Find your perfect home">
+                <MobilePropertySearch />
+              </MobileLayoutWrapper>
+            } />
+            <Route path="/property/:id" element={
+              <MobileLayoutWrapper title="Property Details" subtitle="View property information">
+                <MobilePropertyDetails />
+              </MobileLayoutWrapper>
+            } />
+            <Route path="/auth" element={
+              <MobileLayoutWrapper title="Authentication" subtitle="Sign in to your account">
+                <MobileAuth />
+              </MobileLayoutWrapper>
+            } />
+            <Route path="/dashboard" element={
+              <MobileLayoutWrapper title="Dashboard" subtitle="Manage your account">
+                <MobileDashboard />
+              </MobileLayoutWrapper>
+            } />
+            
+            {/* New mobile-optimized routes with navigation wrapper */}
+            <Route path="/properties" element={
+              <MobileLayoutWrapper title="Properties" subtitle="Browse all properties">
+                <MobilePropertyList />
+              </MobileLayoutWrapper>
+            } />
+            <Route path="/mobile-property/:id" element={
+              <MobileLayoutWrapper title="Property Details" subtitle="View property information">
+                <MobilePropertyDetailsNew />
+              </MobileLayoutWrapper>
+            } />
+            <Route path="/favorites" element={
+              <MobileLayoutWrapper title="Favorites" subtitle="Your saved properties">
+                <div className="p-4 text-center">
+                  <h2 className="text-xl font-semibold mb-2">Your Favorites</h2>
+                  <p className="text-gray-600">No favorites yet. Start exploring properties!</p>
+                </div>
+              </MobileLayoutWrapper>
+            } />
             
             {/* Desktop routes WITH layout (navbar + footer) */}
             <Route path="/desktop" element={<Layout />}>
@@ -103,6 +153,7 @@ function App() {
             {/* Desktop routes WITHOUT layout (standalone pages) */}
             <Route path="/desktop/properties" element={<ListPage />} />
             <Route path="/properties" element={<ListPage />} />
+            <Route path="/scraping" element={<ScrapingDashboard />} />
             <Route path="/properties/add" element={<AddProperty />} />
             <Route path="/desktop/properties/add" element={<AddProperty />} />
             <Route path="/desktop/property/:id" element={<PropertyDetails />} />
@@ -111,7 +162,10 @@ function App() {
             <Route path="/desktop/register" element={<Register />} />
             <Route path="/desktop/dashboard" element={<Dashboard />} />
             <Route path="/agent-verification" element={<AgentVerificationPage />} />
-            
+
+            {/* Messages route */}
+            <Route path="/messages" element={<Messages />} />
+
             {/* Admin routes */}
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="/desktop/admin" element={<AdminPanel />} />
@@ -127,9 +181,15 @@ function App() {
             <Route path="/trial-dashboard/documents" element={<DocumentStorage />} />
             <Route path="/trial-dashboard/payments" element={<PaymentRecording />} />
             
-            {/* Tenant Portal routes */}
+            {/* Tenant Portal routes (nested) */}
             <Route path="/tenant-login" element={<TenantLogin />} />
-            <Route path="/tenant-dashboard" element={<TenantDashboard />} />
+            <Route path="/tenant-dashboard" element={<TenantDashboardLayout />}> 
+              <Route index element={<TenantOverview />} />
+              <Route path="payments" element={<TenantPayments />} />
+              <Route path="maintenance" element={<TenantMaintenance />} />
+              <Route path="receipts" element={<TenantReceipts />} />
+              <Route path="support" element={<TenantSupport />} />
+            </Route>
             
             {/* Catch all route - redirect to mobile home */}
             <Route path="*" element={<MobileResponsiveWrapper />} />

@@ -382,7 +382,14 @@ const PropertyModeration = () => {
                           {property.title}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {property.location}
+                          {(() => {
+                            if (typeof property.location === 'string') {
+                              return property.location;
+                            } else if (property.location && typeof property.location === 'object') {
+                              return property.location.address || property.location.city || property.location.state || '';
+                            }
+                            return property.address || 'Location not specified';
+                          })()}
                         </div>
                         <div className="text-sm font-semibold text-green-600">
                           Ksh {property.price.toLocaleString()}

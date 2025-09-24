@@ -538,6 +538,25 @@ const Navbar = () => {
                             </Link>
                           </motion.div>
                           
+                          <motion.div
+                            whileHover={{ x: 4 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <Link
+                              to="/scraping"
+                              onClick={() => setIsProfileDropdownOpen(false)}
+                              className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                            >
+                              <motion.div
+                                whileHover={{ scale: 1.1, rotate: 5 }}
+                                transition={{ duration: 0.2 }}
+                              >
+                                <BarChart3 className="w-4 h-4 text-green-500" />
+                              </motion.div>
+                              <span>Scraping Dashboard</span>
+                            </Link>
+                          </motion.div>
+                          
                           <Link
                             to="/desktop/admin?section=users"
                             onClick={() => setIsProfileDropdownOpen(false)}
@@ -836,6 +855,15 @@ const Navbar = () => {
                       >
                         <Crown className="w-4 h-4 text-purple-500" />
                         <span>Admin Panel</span>
+                      </Link>
+                      
+                      <Link
+                        to="/scraping"
+                        onClick={() => setIsMenuOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <BarChart3 className="w-4 h-4 text-green-500" />
+                        <span>Scraping Dashboard</span>
                       </Link>
                       
                       <Link

@@ -61,7 +61,9 @@ function getNormalizedLatLng(property) {
     }
   }
 
-  if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0) {
+  // Validate coordinate ranges (Kenya is roughly -4.7 to 4.6 lat, 33.9 to 41.9 lng)
+  if (Number.isFinite(lat) && Number.isFinite(lng) && 
+      lat >= -5 && lat <= 5 && lng >= 33 && lng <= 42) {
     return { lat, lng };
   }
   return null;
@@ -1284,12 +1286,44 @@ const [mapZoom, setMapZoom] = useState(location.state?.mapZoom || DEFAULT_ZOOM);
           {/* Property markers with clustering */}
           <MarkerClusterer>
             {(clusterer) => {
+              // Handle duplicate coordinates by adding small offsets
+              const coordinateMap = {}; // Use plain object instead of Map constructor
+              const processedProperties = propertyData.map((property) => {
+                const coords = getNormalizedLatLng(property);
+                if (!coords) return null;
+                
+                const { lat, lng } = coords;
+                const coordKey = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+                
+                if (coordinateMap[coordKey]) {
+                  // This coordinate already exists, add a small offset
+                  const existingCount = coordinateMap[coordKey];
+                  coordinateMap[coordKey] = existingCount + 1;
+                  
+                  // Create a small circular offset pattern
+                  const angle = (existingCount * 2 * Math.PI) / 8; // 8 positions around a circle
+                  const offsetDistance = 0.0005; // Very small offset (about 50 meters)
+                  const offsetLat = lat + (offsetDistance * Math.cos(angle));
+                  const offsetLng = lng + (offsetDistance * Math.sin(angle));
+                  
+                  return {
+                    ...property,
+                    latitude: offsetLat,
+                    longitude: offsetLng,
+                    originalLatitude: lat,
+                    originalLongitude: lng
+                  };
+                } else {
+                  coordinateMap[coordKey] = 1;
+                  return property;
+                }
+              }).filter(Boolean); // Remove null entries
+              
               return (
                 <>
-                  {propertyData.map((property) => {
-                    const coords = getNormalizedLatLng(property);
-                    if (!coords) return null;
-                    const { lat, lng } = coords;
+                  {processedProperties.map((property) => {
+                    const lat = property.latitude;
+                    const lng = property.longitude;
                     return (
                       <Marker
                         key={property.id}

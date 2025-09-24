@@ -46,6 +46,16 @@ const TenantDashboard = () => {
   const [showMaintenance, setShowMaintenance] = useState(false);
   const [maintenance, setMaintenance] = useState({ category: 'General', description: '' });
 
+  // Smooth in-page navigation
+  const handleNavigate = (targetId) => {
+    try {
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } catch (_) {}
+  };
+
   // Quick Actions handlers
   const handleSaveAutoPay = () => {
     const updated = { ...autoPay, enabled: true };
@@ -362,61 +372,60 @@ const TenantDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-      {/* Enhanced Header with Design System */}
-      <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 shadow-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#51faaa] to-[#dbd5a4] rounded-3xl flex items-center justify-center shadow-lg shadow-[#51faaa]/25 hover:shadow-xl hover:shadow-[#51faaa]/40 transition-all duration-300 group">
-                <Home className="w-8 h-8 text-[#0a0c19] group-hover:scale-110 transition-transform duration-300" />
+      {/* Sidebar + Main Layout */}
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8 flex gap-8">
+        {/* Sidebar */}
+        <aside className="hidden lg:flex w-64 flex-shrink-0">
+          <div className="sticky top-6 h-[calc(100vh-3rem)] p-6 rounded-3xl bg-white dark:bg-gray-800 border border-gray-200/50 dark:border-gray-700/50 shadow-xl space-y-6">
+            {/* Brand */}
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-[#51faaa] to-[#dbd5a4] rounded-2xl flex items-center justify-center shadow-lg">
+                <Home className="w-6 h-6 text-[#0a0c19]" />
               </div>
               <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2 transition-colors duration-300">
-                  Welcome back, {tenantData.name}! 🏡
-                </h1>
-                <div className="flex items-center space-x-4">
-                  <p className="text-lg text-gray-600 dark:text-gray-300 font-medium transition-colors duration-300">
-                    {tenantData.propertyName} - {tenantData.unitNumber}
-                  </p>
-                  <span className="px-4 py-2 bg-gradient-to-r from-[#51faaa]/20 to-[#dbd5a4]/20 dark:from-[#51faaa]/30 dark:to-[#dbd5a4]/30 text-[#51faaa] dark:text-[#51faaa] text-sm font-semibold rounded-full border border-[#51faaa]/30 dark:border-[#51faaa]/40 shadow-lg shadow-[#51faaa]/20 transition-all duration-300">
-                    {tenantData.status || 'Active'}
-                  </span>
-                </div>
+                <p className="text-xs text-gray-500">CRIBBY</p>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Tenant Portal</h2>
               </div>
             </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="p-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-2xl transition-all duration-300 cursor-pointer shadow-sm"
-                >
-                  <Bell className="w-6 h-6 text-gray-600 dark:text-gray-300" />
-                  {notifications.length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#0a0c19] text-xs rounded-full flex items-center justify-center font-bold shadow-lg">
-                      {notifications.length}
-                    </span>
-                  )}
-                </motion.div>
-              </div>
-              <motion.button
-                onClick={handleLogout}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="px-6 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-2xl transition-all duration-300 flex items-center gap-2 shadow-sm font-medium"
-              >
-                <LogOut className="w-5 h-5" />
-                <span>Logout</span>
-              </motion.button>
+
+            {/* User snapshot */}
+            <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200/50 dark:border-gray-600/50">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{tenantData.name}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-300">{tenantData.propertyName} • {tenantData.unitNumber}</p>
+              <span className="inline-block mt-2 px-3 py-1 rounded-full text-xs bg-[#51faaa]/20 text-[#0a0c19] border border-[#51faaa]/30">{tenantData.status || 'Active'}</span>
+            </div>
+
+            {/* Nav */}
+            <nav className="space-y-2">
+              <button onClick={() => handleNavigate('overview')} className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium flex items-center gap-3">
+                <TrendingUp className="w-4 h-4" /> Dashboard Overview
+              </button>
+              <button onClick={() => handleNavigate('payments')} className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium flex items-center gap-3">
+                <DollarSign className="w-4 h-4" /> Payments
+              </button>
+              <button onClick={() => handleNavigate('maintenance')} className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium flex items-center gap-3">
+                <Settings className="w-4 h-4" /> Maintenance
+              </button>
+              <button onClick={() => handleNavigate('receipts')} className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium flex items-center gap-3">
+                <History className="w-4 h-4" /> Receipts
+              </button>
+              <button onClick={() => handleNavigate('support')} className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium flex items-center gap-3">
+                <Users className="w-4 h-4" /> Support
+              </button>
+            </nav>
+
+            <div className="mt-auto">
+              <button onClick={handleLogout} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center gap-2">
+                <LogOut className="w-4 h-4" /> Logout
+              </button>
             </div>
           </div>
-        </div>
-      </div>
+        </aside>
 
-      {/* Enhanced Dashboard Content */}
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+        {/* Main content */}
+        <main className="flex-1">
         {/* Dashboard Overview Section */}
-        <div className="mb-8">
+        <div id="overview" className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2 transition-colors duration-300">Dashboard Overview</h2>
@@ -513,7 +522,7 @@ const TenantDashboard = () => {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Rent Payment Card */}
-            <motion.div
+            <motion.div id="payments"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
@@ -570,7 +579,7 @@ const TenantDashboard = () => {
             </motion.div>
 
             {/* Payment History */}
-            <motion.div
+            <motion.div id="receipts"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
@@ -689,71 +698,10 @@ const TenantDashboard = () => {
               </div>
             </motion.div>
 
-            {/* Enhanced CRIBBY Score */}
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.8 }}
-              className="p-6 rounded-3xl bg-gradient-to-br from-[#51faaa]/10 via-white/80 to-[#dbd5a4]/10 border border-[#51faaa]/30 shadow-xl shadow-[#51faaa]/10 hover:shadow-2xl hover:shadow-[#51faaa]/20 transition-all duration-500 backdrop-blur-xl"
-            >
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-[#51faaa] to-[#dbd5a4] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <Star className="w-10 h-10 text-gray-900" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                  🏆 CRIBBY SCORE
-                </h3>
-                <div className="text-6xl font-bold text-gray-900 mb-2">
-                  {cribbyScore}
-                </div>
-                <div className="text-xl text-gray-500 mb-1">/1000</div>
-                <p className="text-[#51faaa] font-bold text-lg">Excellent Tenant!</p>
-              </div>
-
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between items-center p-4 bg-white/50 rounded-2xl">
-                  <span className="text-gray-700 font-medium">🔥 On-time Streak</span>
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-gray-900">{streak} months</div>
-                    <span className="text-sm text-[#51faaa] font-medium">+25 pts</span>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center p-4 bg-white/50 rounded-2xl">
-                  <span className="text-gray-700 font-medium">💰 Auto-pay Champion</span>
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-gray-900">Active</div>
-                    <span className="text-sm text-[#51faaa] font-medium">+50 pts</span>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center p-4 bg-white/50 rounded-2xl">
-                  <span className="text-gray-700 font-medium">⭐ Model Tenant</span>
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-gray-900">Badge</div>
-                    <span className="text-sm text-[#51faaa] font-medium">+100 pts</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-6 bg-gradient-to-r from-[#51faaa]/10 to-[#dbd5a4]/10 rounded-2xl border border-[#51faaa]/30">
-                <div className="flex items-center gap-3 mb-3">
-                  <Gift className="w-6 h-6 text-[#51faaa]" />
-                  <p className="font-bold text-gray-900 text-lg">Next Reward</p>
-                </div>
-                <p className="text-gray-700 font-medium">
-                  🎁 5% rent discount at 900 points!
-                </p>
-                <div className="mt-3 bg-white rounded-full h-2">
-                  <div 
-                    className="bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${(cribbyScore / 900) * 100}%` }}
-                  ></div>
-                </div>
-                <p className="text-sm text-gray-600 mt-2">{900 - cribbyScore} points to go</p>
-              </div>
-            </motion.div>
+            {/* CRIBBY Score card removed per request */}
 
             {/* Enhanced Quick Actions */}
-            <motion.div
+            <motion.div id="maintenance"
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.9 }}
@@ -810,8 +758,27 @@ const TenantDashboard = () => {
                 </motion.button>
               </div>
             </motion.div>
+
+            {/* Support */}
+            <motion.div
+              id="support"
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 1.0 }}
+              className="p-6 rounded-3xl bg-white/80 backdrop-blur-xl border border-gray-200/50 shadow-xl shadow-gray-900/5"
+            >
+              <h3 className="text-xl font-bold text-gray-900 mb-3">🧩 Support</h3>
+              <p className="text-gray-600 mb-4">Need help with payments, maintenance, or your account?</p>
+              <div className="flex gap-3">
+                <button className="flex-1 py-3 border-2 border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50">Help Center</button>
+                <button className="flex-1 py-3 bg-gradient-to-r from-[#51faaa] to-[#dbd5a4] text-[#0a0c19] font-bold rounded-xl">Contact Support</button>
+              </div>
+            </motion.div>
           </div>
         </div>
+        
+        {/* Close main and container before modals */}
+        </main>
       </div>
 
       {/* Payment Modal */}
