@@ -176,3 +176,30 @@ type SimilarProperty {
   address   String
   image     String
 }
+
+/// Staging model for externally scraped listings before normalization/import
+model ExternalListing {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  source       String   // e.g., buyrentkenya, property24
+  sourceId     String?  // listing id from source site, if available
+  url          String   @unique
+  title        String?
+  price        Int?
+  bedrooms     Int?
+  bathrooms    Float?
+  area         Int?
+  address      String?
+  city         String?
+  latitude     Float?
+  longitude    Float?
+  images       String[]
+  listingType  String?  // rent | sale
+  propertyType String?
+  raw          Json     // raw scraped payload
+  normalized   Boolean  @default(false)
+  imported     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([source, sourceId])
+}

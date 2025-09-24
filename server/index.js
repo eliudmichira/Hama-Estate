@@ -7,6 +7,7 @@ import { propertyRoute } from "./routes/propertyRoute.js";
 import { agentRoute } from "./routes/agentRoute.js";
 import { residencyRoute } from "./routes/residencyRoute.js";
 import vacancyRoute from "./routes/vacancyRoute.js";
+import scrapingRoute from "./routes/scraping.js";
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ app.use("/api/properties", propertyRoute);
 app.use("/api/agents", agentRoute);
 app.use("/api/residency", residencyRoute); // Keep for backward compatibility
 app.use("/api/vacancy", vacancyRoute);
+app.use("/api/scraping", scrapingRoute);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
